@@ -10,21 +10,16 @@ use App\Http\Controllers\RoleController;
 
 
 
-Route::middleware(['auth:sanctum', 'role:admin'])->get('/admin-only', function () {
-    return response()->json(['msg' => 'You are admin']);
-});
-
-
 Route::get('/user', function (Request $request) {
     return $request->user();
-})->middleware('auth:sanctum', 'role:admin'); // Example of role-based access control
+})->middleware('auth:sanctum'); 
 
 
 Route::get("/test", function(){
     return ["name" => "Atiya", "age" =>21];
 });
 
-Route::post("/login", [UserController::class, "login"])->name('login');
+Route::get("/login", [UserController::class, "login"])->name('login');
 
                   //Teacher routes
 Route::get("/teachers", [TeachersController::class, "list"]);
@@ -44,14 +39,31 @@ Route::delete("/delete-manage_classes/{id}", [ManageClassController::class, "del
 Route::get("/search-manage_classes/{username}", [ManageClassController::class, "searchClass"]);
 
                     //Role based route
-Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
-    Route::get('/admin-only', function () {
-        return "Only Admin";
-    });
+// Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+//     Route::get('/admin-only', function () {
+//         return "Only Admin";
+//     });
+// });
+//                    //Permission based route
+// Route::middleware(['auth:sanctum', 'permission:edit posts'])->group(function () {
+//     Route::get('/edit', function () {
+//         return "Can edit";
+//     });
+// });
+
+
+
+
+Route::middleware(['auth:sanctum'])->group(function () {
+
+    Route::post('/create-role', [RoleController::class, 'createRole']);
+    Route::post('/create-permission', [RoleController::class, 'createPermission']);
+    Route::post('/assign-role', [RoleController::class, 'assignRole']);
+    Route::post('/assign-permission', [RoleController::class, 'assignPermissionToRole']);
+    Route::get('/check-access', [RoleController::class, 'checkAccess']);
+
 });
-                   //Permission based route
-Route::middleware(['auth:sanctum', 'permission:edit posts'])->group(function () {
-    Route::get('/edit', function () {
-        return "Can edit";
-    });
+
+Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+    Route::post('/create-role', [RoleController::class, 'createRole']);
 });
