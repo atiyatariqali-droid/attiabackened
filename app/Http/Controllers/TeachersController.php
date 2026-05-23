@@ -18,7 +18,7 @@ class TeachersController extends Controller
 
     function addTeacher(Request $request){
         $teacher = new Teachers();
-        $teacher->name = $request->name;
+        $teacher->username = $request->username;
         $teacher->email = $request->email;
         $teacher->password = bcrypt($request->password);
         $teacher->phone = $request->phone;
@@ -50,7 +50,7 @@ class TeachersController extends Controller
 
         // Validate request
         $request->validate([
-            'name' => 'required',
+            'username' => 'required',
             'email' => 'required|email',
             'password' => 'nullable|min:6',
             'phone' => 'nullable'
@@ -58,7 +58,7 @@ class TeachersController extends Controller
 
         // Prepare data
         $data = [
-            'name' => $request->name,
+            'username' => $request->username,
             'email' => $request->email,
             'phone' => $request->phone
         ];
@@ -92,8 +92,8 @@ class TeachersController extends Controller
     }  
       //Search teacher by name
       
-    function searchTeacher($name){
-        $teacher = Teachers::where("name", "like", "%$name%")->get();
+    function searchTeacher($username){
+        $teacher = Teachers::where("username", "like", "%$username%")->get();
         if($teacher){
             return["result" => $teacher];
         }
