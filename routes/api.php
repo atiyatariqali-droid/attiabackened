@@ -7,6 +7,8 @@ use App\Http\Controllers\TeachersController;
 use App\Http\Controllers\ManageClassController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\SessionController;
 
 
 
@@ -67,3 +69,21 @@ Route::middleware(['auth:sanctum'])->group(function () {
 Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::post('/create-role', [RoleController::class, 'createRole']);
 });
+
+                     //Mark attendance
+Route::post('/mark-attendance',
+    [AttendanceController::class, 'markAttendance']
+);
+
+          //mark attendance
+Route::post('/login-session',
+    [SessionController::class, 'login']
+);
+
+Route::post('/logout-session/{id}',
+    [SessionController::class, 'logout']
+);
+
+Route::get('/active-sessions',
+    [SessionController::class, 'activeSessions']
+);          
