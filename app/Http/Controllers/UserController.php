@@ -11,7 +11,7 @@ class UserController extends Controller
 {
     public function login(Request $request)
     {
-        // Basic validation (don’t skip this)
+        // validation don’t skip this
         $request->validate([
             'email' => 'required|email',
             'password' => 'required'
