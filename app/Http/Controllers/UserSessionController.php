@@ -100,6 +100,13 @@ class UserSessionController extends Controller
         ]);
     }
 
-    
+    //Get Active Sessions
+     
+    public function activeSessions()
+    {
+        $sessions = UserSession::where('is_active', true)->get();
+
+        return response()->json($sessions);
+    }
      
 }
