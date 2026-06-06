@@ -59,6 +59,7 @@ Route::get("/search-manage_classes/{username}", [ManageClassController::class, "
 Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::post('/create-role', [RoleController::class, 'createRole']);
+    //edit, delete, update role
     Route::post('/create-permission', [RoleController::class, 'createPermission']);
     Route::post('/assign-role', [RoleController::class, 'assignRole']);
     Route::post('/assign-permission', [RoleController::class, 'assignPermissionToRole']);
@@ -86,4 +87,11 @@ Route::post('/logout-session/{id}',
 
 Route::get('/active-sessions',
     [SessionController::class, 'activeSessions']
-);          
+);        
+
+//create seesion  only insert check fields from chatgpt
+//table system_confi (fields(primary key, lonitude latitude, school name, school address, school contact, created at, updated at))
+//logic
+//we need to check the current longituted and latitude of teacher before creating session if the teacher is in the range of school then create session otherwise return error message
+//topic
+//study laravel google map /API 
