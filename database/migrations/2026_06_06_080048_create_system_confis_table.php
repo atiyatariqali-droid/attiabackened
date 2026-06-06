@@ -13,6 +13,11 @@ return new class extends Migration
     {
         Schema::create('system_confis', function (Blueprint $table) {
             $table->id();
+            $table->decimal('longitude', 10, 7);
+            $table->decimal('latitude', 10, 7);
+            $table->string('school_name');
+            $table->text('school_address');
+            $table->string('school_contact');
             $table->timestamps();
         });
     }
