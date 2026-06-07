@@ -61,9 +61,20 @@ class SystemConfiController extends Controller
     /*
       Show the form for editing the specified resource.
      */
-    public function edit(SystemConfi $systemConfi)
+    public function edit($id)
     {
-        //
+        $data = SystemConfi::find($id);
+
+        if (!$data) {
+            return response()->json([
+                'message' => 'Record Not Found'
+            ], 404);
+        }
+
+        return response()->json([
+        'message' => 'Record Found',
+        'data' => $data
+    ]);
     }
 
     /*

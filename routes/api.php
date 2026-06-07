@@ -9,6 +9,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\SessionController;
+use App\Http\Controllers\SystemConfiController;
 
 
 
@@ -87,7 +88,15 @@ Route::post('/logout-session/{id}',
 
 Route::get('/active-sessions',
     [SessionController::class, 'activeSessions']
-);        
+);    
+
+//System configuration routes
+Route::get('/system-confi', [SystemConfiController::class, 'index']);
+Route::post('/system-confi', [SystemConfiController::class, 'store']);
+Route::get('/system-confi/{id}', [SystemConfiController::class, 'show']);
+Route::put('/system-confi/{id}', [SystemConfiController::class, 'update']);
+Route::delete('/system-confi/{id}', [SystemConfiController::class, 'destroy']);
+Route::get('/system-confi/edit/{id}', [SystemConfiController::class, 'edit']);
 
 //create seesion  only insert check fields from chatgpt
 //table system_confi (fields(primary key, lonitude latitude, school name, school address, school contact, created at, updated at))
