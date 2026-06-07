@@ -28,7 +28,7 @@ class UserSeeder extends Seeder
   // teacher ky liye
          User::create([
             'username' => 'teacher1',
-            'email' => 'teacher@gmail.com',
+            'email' => 'teacher1@gmail.com',
             'password' => bcrypt('123456'),
             'phone' => '03001234567',
             'role' => 'teacher'
@@ -36,7 +36,7 @@ class UserSeeder extends Seeder
         //student ky liye
         User::create([
             'username' => 'student1',
-            'email' => 'student@gmail.com',
+            'email' => 'student1@gmail.com',
             'password' => bcrypt('123456'),
             'phone' => '03111234567',
             'role' => 'student'
