@@ -7,91 +7,138 @@ use App\Models\ManageClass;
 
 class ManageClassController extends Controller
 {
-      function list(){
-        return ManageClass::all();
-      }
-    /**
-     * Store a newly created resource in storage.
-     */
+    // ─────────────────────────────
+    // LIST ALL CLASSES
+    // ─────────────────────────────
+    function list(){
+        return response()->json([
+            "success" => true,
+            "data" => ManageClass::all()
+        ]);
+    }
+
+    // ─────────────────────────────
+    // ADD CLASS
+    // ─────────────────────────────
     public function addClass(Request $request)
     {
+        $request->validate([
+            'name' => 'required',
+            'class_name' => 'required',
+            'students_count' => 'required|integer',
+            'status' => 'required'
+        ]);
+
         $manageClass = new ManageClass();
         $manageClass->name = $request->name;
+        $manageClass->class_name = $request->class_name;
+$manageClass->students_count = $request->students_count;
         $manageClass->status = $request->status;
+
         if($manageClass->save()){
-            return ["result" => "Class added successfully"];
+            return response()->json([
+                "success" => true,
+                "message" => "Class added successfully"
+            ]);
         }
-        else{
-            return ["result" => "Failed to add class"];
-        }
+
+        return response()->json([
+            "success" => false,
+            "message" => "Failed to add class"
+        ]);
     }
 
-    
-
-    /**
-     * Display the specified resource.
-     */
-    // public function show(ManageClass $manageClass)
-    // {
-    //     return ManageClass::all();
-    // }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
+    // ─────────────────────────────
+    // EDIT CLASS (GET SINGLE)
+    // ─────────────────────────────
     public function editClass($id)
     {
-        $manageClass= ManageClass::find($id);
-        return $manageClass;
+        $manageClass = ManageClass::find($id);
+
+        if(!$manageClass){
+            return response()->json([
+                "success" => false,
+                "message" => "Class not found"
+            ]);
+        }
+
+        return response()->json([
+            "success" => true,
+            "data" => $manageClass
+        ]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
+    // ─────────────────────────────
+    // UPDATE CLASS
+    // ─────────────────────────────
     public function updateClass(Request $request, $id)
     {
-         $manageClass = ManageClass::find($id);
-         $manageClass->name = $request->name;
-         $manageClass->status = $request->status;
+        $manageClass = ManageClass::find($id);
+
+        if(!$manageClass){
+            return response()->json([
+                "success" => false,
+                "message" => "Class not found"
+            ]);
+        }
+
+        $manageClass->name = $request->name;
+        $manageClass->class_name = $request->class_name;
+$manageClass->students_count = $request->students_count;
+        $manageClass->status = $request->status;
+
         if($manageClass->save()){
-            return [
-                "result" => "Class record updated successfully"
-            ];
+            return response()->json([
+                "success" => true,
+                "message" => "Class updated successfully"
+            ]);
         }
-        else{
-            return [
-                "result" => "Class record not updated"
-            ];
-        }
+
+        return response()->json([
+            "success" => false,
+            "message" => "Class not updated"
+        ]);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
+    // ─────────────────────────────
+    // DELETE CLASS
+    // ─────────────────────────────
     public function deleteClass($id)
     {
-        $manageClass = ManageClass::destroy($id);
-        if($manageClass){
-            return [
-                "result" => "Class record deleted successfully"
-            ];
+        $manageClass = ManageClass::find($id);
+
+        if(!$manageClass){
+            return response()->json([
+                "success" => false,
+                "message" => "Class not found"
+            ]);
         }
-        else{
-            return [
-                "result" => "Class record not deleted"
-            ];
-        }
+
+        $manageClass->delete();
+
+        return response()->json([
+            "success" => true,
+            "message" => "Class deleted successfully"
+        ]);
     }
 
-    //Search class by name
-
-    function searchClass($name){
+    // ─────────────────────────────
+    // SEARCH CLASS
+    // ─────────────────────────────
+    function searchClass($name)
+    {
         $class = ManageClass::where("name", "like", "%$name%")->get();
-        if($class){
-            return["result" => $class];
+
+        if($class->isEmpty()){
+            return response()->json([
+                "success" => false,
+                "message" => "Class record not found"
+            ]);
         }
-        else{
-            return["result" => "Class record not found"];
-        }
-    }  
+
+        return response()->json([
+            "success" => true,
+            "data" => $class
+        ]);
+    }
 }

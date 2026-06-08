@@ -2,53 +2,86 @@
 
 namespace App\Http\Controllers;
 
- 
 use Illuminate\Http\Request;
 use App\Models\Teachers;
 
 class TeachersController extends Controller
 {
-    //
+    // ─────────────────────────────
+    // LIST ALL TEACHERS
+    // ─────────────────────────────
     function list(){
-        return Teachers::all();
+        return response()->json([
+            "success" => true,
+            "data" => Teachers::all()
+        ]);
     }
 
-  
-//add teacher
-
+    // ─────────────────────────────
+    // ADD TEACHER
+    // ─────────────────────────────
     function addTeacher(Request $request){
+
+        $request->validate([
+            'username' => 'required',
+            'email' => 'required|email',
+            'password' => 'required|min:6',
+            'phone' => 'nullable'
+        ]);
+
         $teacher = new Teachers();
         $teacher->username = $request->username;
         $teacher->email = $request->email;
         $teacher->password = bcrypt($request->password);
         $teacher->phone = $request->phone;
+
         if($teacher->save()){
-            return ["result" => "Teacher added successfully"];
-    }
-        else{
-            return ["result" => "Failed to add teacher"];
+            return response()->json([
+                "success" => true,
+                "message" => "Teacher added successfully"
+            ]);
         }
+
+        return response()->json([
+            "success" => false,
+            "message" => "Failed to add teacher"
+        ]);
     }
 
-              // editTeacher 
-    function editTeacher($id){  
+    // ─────────────────────────────
+    // GET SINGLE TEACHER (EDIT)
+    // ─────────────────────────────
+    function editTeacher($id){
+
         $teacher = Teachers::find($id);
-        return $teacher;
-    }  
 
-      //update updateTeacher
+        if(!$teacher){
+            return response()->json([
+                "success" => false,
+                "message" => "Teacher not found"
+            ]);
+        }
 
+        return response()->json([
+            "success" => true,
+            "data" => $teacher
+        ]);
+    }
+
+    // ─────────────────────────────
+    // UPDATE TEACHER
+    // ─────────────────────────────
     function updateTeacher(Request $request, $id){
 
         $teacher = Teachers::find($id);
 
         if(!$teacher){
             return response()->json([
-                "error" => "Teacher not found"
+                "success" => false,
+                "message" => "Teacher not found"
             ], 404);
         }
 
-        // Validate request
         $request->validate([
             'username' => 'required',
             'email' => 'required|email',
@@ -56,14 +89,12 @@ class TeachersController extends Controller
             'phone' => 'nullable'
         ]);
 
-        // Prepare data
         $data = [
             'username' => $request->username,
             'email' => $request->email,
             'phone' => $request->phone
         ];
 
-        // Only update password if provided
         if($request->password){
             $data['password'] = bcrypt($request->password);
         }
@@ -71,34 +102,50 @@ class TeachersController extends Controller
         $teacher->update($data);
 
         return response()->json([
-            "result" => "Teacher updated successfully"
+            "success" => true,
+            "message" => "Teacher updated successfully"
         ]);
     }
 
+    // ─────────────────────────────
+    // DELETE TEACHER
+    // ─────────────────────────────
+    function deleteTeacher($id){
 
-                     // Delete teacher
-    function deleteTeacher($id){  
-        $teacher = Teachers::destroy($id);
-        if($teacher){
-            return [
-                "result" => "Teacher record deleted successfully"
-            ];
+        $teacher = Teachers::find($id);
+
+        if(!$teacher){
+            return response()->json([
+                "success" => false,
+                "message" => "Teacher not found"
+            ]);
         }
-        else{
-            return [
-                "result" => "Teacher record not deleted"
-            ];
-        }
-    }  
-      //Search teacher by name
-      
+
+        $teacher->delete();
+
+        return response()->json([
+            "success" => true,
+            "message" => "Teacher deleted successfully"
+        ]);
+    }
+
+    // ─────────────────────────────
+    // SEARCH TEACHER
+    // ─────────────────────────────
     function searchTeacher($username){
+
         $teacher = Teachers::where("username", "like", "%$username%")->get();
-        if($teacher){
-            return["result" => $teacher];
+
+        if($teacher->isEmpty()){
+            return response()->json([
+                "success" => false,
+                "message" => "Teacher not found"
+            ]);
         }
-        else{
-            return["result" => "Teacher record not found"];
-        }
-    }  
+
+        return response()->json([
+            "success" => true,
+            "data" => $teacher
+        ]);
+    }
 }

@@ -11,7 +11,7 @@ class UserController extends Controller
 {
     public function login(Request $request)
     {
-        // Basic validation (don’t skip this)
+        
         $request->validate([
             'email' => 'required|email',
             'password' => 'required'
@@ -21,9 +21,7 @@ class UserController extends Controller
 
         $user = User::where("email", $request->email)->first();
 
-        info($user->password);
-
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$user) {
             return [
                 "success" => false,
                 "error" => "Invalid credentials"
@@ -36,6 +34,7 @@ class UserController extends Controller
             "success" => true,
             "msg" => "Login successful",
             "result" => [
+                'id' => $user->id,  
                 "username" => $user->username,   
                 "email" => $user->email,
                 "token" => $token,

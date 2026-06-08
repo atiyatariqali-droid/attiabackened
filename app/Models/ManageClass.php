@@ -11,6 +11,9 @@ class ManageClass extends Model
     protected $fillable = [
         'name',
         'status',
+        'class_name',
+        'students_count',
+
     ];
 
 }
