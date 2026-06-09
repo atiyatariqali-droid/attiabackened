@@ -8,7 +8,7 @@ use App\Http\Controllers\ManageClassController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AttendanceController;
-use App\Http\Controllers\SessionController;
+use App\Http\Controllers\UserSessionController;
 use App\Http\Controllers\SystemConfiController;
 
 
@@ -60,6 +60,8 @@ Route::get("/search-manage_classes/{username}", [ManageClassController::class, "
 Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::post('/create-role', [RoleController::class, 'createRole']);
+    //Route::get('/session', [UserController::class, 'getSession']);
+    //Route::post('/session', [SessionController::class, 'store']);
     //edit, delete, update role
     Route::post('/create-permission', [RoleController::class, 'createPermission']);
     Route::post('/assign-role', [RoleController::class, 'assignRole']);
@@ -77,18 +79,10 @@ Route::post('/mark-attendance',
     [AttendanceController::class, 'markAttendance']
 );
 
-          //mark attendance
-Route::post('/login-session',
-    [SessionController::class, 'login']
-);
-
-Route::post('/logout-session/{id}',
-    [SessionController::class, 'logout']
-);
-
-Route::get('/active-sessions',
-    [SessionController::class, 'activeSessions']
-);    
+          //session create
+Route::post('/login-session',[UserSessionController::class, 'login']);
+Route::post('/logout-session/{id}',[UserSessionController::class, 'logout']);
+Route::get('/active-sessions',[UserSessionController::class, 'activeSessions']);    
 
 //System configuration routes
 Route::get('/system-confi', [SystemConfiController::class, 'index']);
