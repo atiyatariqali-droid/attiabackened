@@ -33,11 +33,15 @@ class SystemSettingController extends Controller
 
     // PUT /api/settings/{id}
     public function update(Request $request, $id) {
-        $setting = SystemSetting::find($id);
-        if(!$setting) return response()->json(['success' => false, 'message' => 'Not found'], 404);
-
-        $setting->update($request->only(['value', 'description', 'type']));
-        return response()->json(['success' => true, 'data' => $setting]);
+        $setting = SystemSetting::findOrFail($id);
+        $setting->update([
+            'value' => $request->value
+        ]);
+    
+        return response()->json([
+            'success' => true,
+            'data' => $setting
+        ]);
     }
 
     // DELETE /api/settings/{id}
