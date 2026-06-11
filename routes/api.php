@@ -10,6 +10,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\SystemSettingController;
+use App\Http\Controllers\StudentController;
 
 
 
@@ -109,4 +110,18 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/assign-permission', [RoleController::class, 'assignPermissionToRole']);
     Route::get('/check-access', [RoleController::class, 'checkAccess']);
     Route::apiResource('settings', SystemSettingController::class);
+
+    /*
+|--------------------------------------------------------------------------
+| STUDENT APPROVAL SYSTEM - NEW ROUTES
+|--------------------------------------------------------------------------
+*/
+
+
+Route::get('/pending-students', [StudentController::class, 'pending']);
+Route::post('/pending-students', [StudentController::class, 'storePending']);
+Route::post('/pending-students/approve/{id}', [StudentController::class, 'approve']);
+Route::post('/pending-students/reject/{id}', [StudentController::class, 'reject']);
+Route::post('/pending-students/approve-all', [StudentController::class, 'approveAll']);
+Route::get('/teacher/{id}/approved-students', [StudentController::class, 'approvedByTeacher']);
 });
