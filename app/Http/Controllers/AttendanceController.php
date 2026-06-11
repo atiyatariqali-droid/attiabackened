@@ -6,7 +6,11 @@ use Illuminate\Http\Request;
 use App\Models\Attendance;
 class AttendanceController extends Controller
 {
-     public function markAttendance(Request $request)
+    public function createSession(Request $request){
+        return $request;
+    }
+
+    public function markAttendance(Request $request)
     {
         $request->validate([
 

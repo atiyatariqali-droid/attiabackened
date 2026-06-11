@@ -2,7 +2,6 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-
 use App\Http\Controllers\TeachersController;
 use App\Http\Controllers\ManageClassController;
 use App\Http\Controllers\UserController;
@@ -88,6 +87,7 @@ Route::get("/search-classes/{name}", [ManageClassController::class, "searchClass
 |--------------------------------------------------------------------------
 */
 Route::post('/mark-attendance', [AttendanceController::class, 'markAttendance']);
+Route::post('/create-session', [AttendanceController::class, 'createSession']);
 
 /*
 |--------------------------------------------------------------------------

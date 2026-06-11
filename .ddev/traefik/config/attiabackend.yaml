@@ -1,0 +1,119 @@
+#ddev-generated
+# If you remove the ddev-generated line above you
+# are responsible for maintaining this file. DDEV will not then
+# update it, for example if you add `additional_hostnames`, etc.
+
+http:
+  routers:
+    attiabackend-phpmyadmin-80-http:
+      entrypoints:
+        - http-8036
+      rule: HostRegexp(`^attiabackend\.ddev\.site$`)
+      
+      service: "attiabackend-phpmyadmin-80"
+      tls: false
+      # middlewares:
+      #   - "attiabackend-redirectHttps"
+    attiabackend-web-80-http:
+      entrypoints:
+        - http-80
+      rule: HostRegexp(`^attiabackend\.ddev\.site$`)
+      
+      service: "attiabackend-web-80"
+      tls: false
+      # middlewares:
+      #   - "attiabackend-redirectHttps"
+    attiabackend-web-8025-http:
+      entrypoints:
+        - http-8025
+      rule: HostRegexp(`^attiabackend\.ddev\.site$`)
+      
+      service: "attiabackend-web-8025"
+      tls: false
+      # middlewares:
+      #   - "attiabackend-redirectHttps"
+    attiabackend-xhgui-80-http:
+      entrypoints:
+        - http-8143
+      rule: HostRegexp(`^attiabackend\.ddev\.site$`)
+      
+      service: "attiabackend-xhgui-80"
+      tls: false
+      # middlewares:
+      #   - "attiabackend-redirectHttps"
+    
+    
+    attiabackend-phpmyadmin-80-https:
+      entrypoints:
+        - http-8037
+      rule: HostRegexp(`^attiabackend\.ddev\.site$`)
+      
+      service: "attiabackend-phpmyadmin-80"
+      
+      tls: true
+      
+    
+    
+    attiabackend-web-80-https:
+      entrypoints:
+        - http-443
+      rule: HostRegexp(`^attiabackend\.ddev\.site$`)
+      
+      service: "attiabackend-web-80"
+      
+      tls: true
+      
+    attiabackend-web-8025-https:
+      entrypoints:
+        - http-8026
+      rule: HostRegexp(`^attiabackend\.ddev\.site$`)
+      
+      service: "attiabackend-web-8025"
+      
+      tls: true
+      
+    
+    attiabackend-xhgui-80-https:
+      entrypoints:
+        - http-8142
+      rule: HostRegexp(`^attiabackend\.ddev\.site$`)
+      
+      service: "attiabackend-xhgui-80"
+      
+      tls: true
+      
+    
+
+  middlewares:
+    attiabackend-redirectHttps:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+  services:
+    attiabackend-phpmyadmin-80:
+      loadbalancer:
+        servers:
+          - url: http://ddev-attiabackend-phpmyadmin:80
+        
+    
+    attiabackend-web-80:
+      loadbalancer:
+        servers:
+          - url: http://ddev-attiabackend-web:80
+        
+    attiabackend-web-8025:
+      loadbalancer:
+        servers:
+          - url: http://ddev-attiabackend-web:8025
+        
+    
+    
+    attiabackend-xhgui-80:
+      loadbalancer:
+        servers:
+          - url: http://ddev-attiabackend-xhgui:80
+        
+    
+    
+
