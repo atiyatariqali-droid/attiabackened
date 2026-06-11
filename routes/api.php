@@ -9,6 +9,8 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\SystemSettingController;
+use App\Http\Controllers\StudentsController;
+use App\Http\Controllers\PendingStudentController;
 
 
 
@@ -58,6 +60,29 @@ Route::get("/search-teachers/{name}", [TeachersController::class, "searchTeacher
 
 /*
 |--------------------------------------------------------------------------
+| STUDENTS ROUTES (CRUD)
+|--------------------------------------------------------------------------
+*/
+Route::get("/students", [StudentsController::class, "list"]);
+Route::post("/students", [StudentsController::class, "addStudent"]);
+Route::get("/students/{id}", [StudentsController::class, "editStudent"]);
+Route::put("/students/{id}", [StudentsController::class, "updateStudent"]);
+Route::delete("/students/{id}", [StudentsController::class, "deleteStudent"]);
+Route::get("/search-students/{name}", [StudentsController::class, "searchStudent"]);
+
+/*
+|--------------------------------------------------------------------------
+| PENDING STUDENTS ROUTES
+|--------------------------------------------------------------------------
+*/
+Route::get("/pending-students", [PendingStudentController::class, "list"]);
+Route::post("/pending-students", [PendingStudentController::class, "store"]);
+Route::post("/pending-students/approve/{id}", [PendingStudentController::class, "approve"]);
+Route::post("/pending-students/reject/{id}", [PendingStudentController::class, "reject"]);
+Route::post("/pending-students/approve-all", [PendingStudentController::class, "approveAll"]);
+
+/*
+|--------------------------------------------------------------------------
 | ROLE CRUD - ADMIN ONLY
 |--------------------------------------------------------------------------
 */
@@ -87,7 +112,7 @@ Route::get("/search-classes/{name}", [ManageClassController::class, "searchClass
 |--------------------------------------------------------------------------
 */
 Route::post('/mark-attendance', [AttendanceController::class, 'markAttendance']);
-Route::post('/create-session', [AttendanceController::class, 'createSession']);
+Route::post('/create-session', [SessionController::class, 'createSession']);
 
 /*
 |--------------------------------------------------------------------------

@@ -14,7 +14,9 @@ return new class extends Migration
         Schema::create('manage_classes', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->enum('status', ['active', 'inactive']);
+            $table->string('class_name')->nullable();
+            $table->integer('students_count')->default(0);
+            $table->enum('status', ['active', 'inactive', 'scheduled'])->default('active');
             $table->timestamps();
         });
     }

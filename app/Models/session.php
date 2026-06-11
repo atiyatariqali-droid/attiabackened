@@ -7,6 +7,8 @@ class Session extends Model
 {
     protected $table = 'sessions';
 
+    public $timestamps = false;
+
     protected $fillable = [
         'teacher_id',
         'class_id', 
