@@ -14,5 +14,6 @@ class Teachers extends Model
         'password',
         'phone',
         'role',
+        'status',
     ];
 }

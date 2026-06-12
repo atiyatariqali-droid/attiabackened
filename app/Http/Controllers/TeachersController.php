@@ -13,7 +13,7 @@ class TeachersController extends Controller
     function list(){
         return response()->json([
             "success" => true,
-            "data" => Teachers::all()
+            "data" => Teachers::where('role', 'teacher')->get()
         ]);
     }
 
@@ -21,10 +21,9 @@ class TeachersController extends Controller
     // ADD TEACHER
     // ─────────────────────────────
     function addTeacher(Request $request){
-
         $request->validate([
             'username' => 'required',
-            'email' => 'required|email',
+            'email' => 'required|email|unique:users,email',
             'password' => 'required|min:6',
             'phone' => 'nullable'
         ]);
@@ -34,6 +33,8 @@ class TeachersController extends Controller
         $teacher->email = $request->email;
         $teacher->password = bcrypt($request->password);
         $teacher->phone = $request->phone;
+        $teacher->role = 'teacher';
+        $teacher->status = 1; // active by default
 
         if($teacher->save()){
             return response()->json([
@@ -52,8 +53,7 @@ class TeachersController extends Controller
     // GET SINGLE TEACHER (EDIT)
     // ─────────────────────────────
     function editTeacher($id){
-
-        $teacher = Teachers::find($id);
+        $teacher = Teachers::where('id', $id)->where('role', 'teacher')->first();
 
         if(!$teacher){
             return response()->json([
@@ -72,8 +72,7 @@ class TeachersController extends Controller
     // UPDATE TEACHER
     // ─────────────────────────────
     function updateTeacher(Request $request, $id){
-
-        $teacher = Teachers::find($id);
+        $teacher = Teachers::where('id', $id)->where('role', 'teacher')->first();
 
         if(!$teacher){
             return response()->json([
@@ -84,7 +83,7 @@ class TeachersController extends Controller
 
         $request->validate([
             'username' => 'required',
-            'email' => 'required|email',
+            'email' => 'required|email|unique:users,email,'.$id,
             'password' => 'nullable|min:6',
             'phone' => 'nullable'
         ]);
@@ -111,8 +110,7 @@ class TeachersController extends Controller
     // DELETE TEACHER
     // ─────────────────────────────
     function deleteTeacher($id){
-
-        $teacher = Teachers::find($id);
+        $teacher = Teachers::where('id', $id)->where('role', 'teacher')->first();
 
         if(!$teacher){
             return response()->json([
@@ -133,10 +131,11 @@ class TeachersController extends Controller
     // SEARCH TEACHER
     // ─────────────────────────────
     function searchTeacher($username){
+        $teachers = Teachers::where('role', 'teacher')
+            ->where("username", "like", "%$username%")
+            ->get();
 
-        $teacher = Teachers::where("username", "like", "%$username%")->get();
-
-        if($teacher->isEmpty()){
+        if($teachers->isEmpty()){
             return response()->json([
                 "success" => false,
                 "message" => "Teacher not found"
@@ -145,7 +144,7 @@ class TeachersController extends Controller
 
         return response()->json([
             "success" => true,
-            "data" => $teacher
+            "data" => $teachers
         ]);
     }
 }

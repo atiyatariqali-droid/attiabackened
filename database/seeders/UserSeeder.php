@@ -21,7 +21,8 @@ class UserSeeder extends Seeder
                 'username' => 'admin',
                 'password' => bcrypt('123456'),
                 'phone' => '03001234567',
-                'role' => 'admin'
+                'role' => 'admin',
+                'status' => 1
             ]
         );
 
@@ -34,7 +35,8 @@ class UserSeeder extends Seeder
                 'username' => 'irha sanaullah',
                 'password' => bcrypt('123456'),
                 'phone' => '03009876543',
-                'role' => 'teacher'
+                'role' => 'teacher',
+                'status' => 1
             ]
         );
 
@@ -44,7 +46,8 @@ class UserSeeder extends Seeder
                 'username' => 'Miss Amina',
                 'password' => bcrypt('123456'),
                 'phone' => '03001122334',
-                'role' => 'teacher'
+                'role' => 'teacher',
+                'status' => 1
             ]
         );
 
@@ -54,7 +57,8 @@ class UserSeeder extends Seeder
                 'username' => 'Sir Usman',
                 'password' => bcrypt('123456'),
                 'phone' => '03005566778',
-                'role' => 'teacher'
+                'role' => 'teacher',
+                'status' => 1
             ]
         );
 
@@ -67,7 +71,10 @@ class UserSeeder extends Seeder
                 'username' => 'student1',
                 'password' => bcrypt('123456'),
                 'phone' => '03111234567',
-                'role' => 'student'
+                'role' => 'student',
+                'status' => 1,
+                'class' => 'Class 5',
+                'roll_no' => '1001'
             ]
         );
 
@@ -77,7 +84,10 @@ class UserSeeder extends Seeder
                 'username' => 'Sheeza',
                 'password' => bcrypt('123456'),
                 'phone' => '03091234567',
-                'role' => 'student'
+                'role' => 'student',
+                'status' => 1,
+                'class' => 'Class 5',
+                'roll_no' => '1002'
             ]
         );
 
@@ -87,7 +97,10 @@ class UserSeeder extends Seeder
                 'username' => 'bisma jabeen',
                 'password' => bcrypt('123456'),
                 'phone' => '03091934836',
-                'role' => 'student'
+                'role' => 'student',
+                'status' => 1,
+                'class' => 'Class 5',
+                'roll_no' => '1003'
             ]
         );
 
@@ -97,7 +110,10 @@ class UserSeeder extends Seeder
                 'username' => 'Kinza',
                 'password' => bcrypt('123456'),
                 'phone' => '03012378564',
-                'role' => 'student'
+                'role' => 'student',
+                'status' => 1,
+                'class' => 'Class 6',
+                'roll_no' => '2001'
             ]
         );
 
@@ -107,7 +123,10 @@ class UserSeeder extends Seeder
                 'username' => 'Nimrah',
                 'password' => bcrypt('123456'),
                 'phone' => '03045623987',
-                'role' => 'student'
+                'role' => 'student',
+                'status' => 1,
+                'class' => 'Class 6',
+                'roll_no' => '2002'
             ]
         );
     }

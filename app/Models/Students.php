@@ -14,5 +14,9 @@ class Students extends Model
         'password',
         'phone',
         'role',
+        'status',
+        'class',
+        'roll_no',
+        'teacher_id',
     ];
 }

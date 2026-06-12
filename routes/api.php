@@ -63,12 +63,7 @@ Route::get("/search-teachers/{name}", [TeachersController::class, "searchTeacher
 | STUDENTS ROUTES (CRUD)
 |--------------------------------------------------------------------------
 */
-Route::get("/students", [StudentsController::class, "list"]);
-Route::post("/students", [StudentsController::class, "addStudent"]);
-Route::get("/students/{id}", [StudentsController::class, "editStudent"]);
-Route::put("/students/{id}", [StudentsController::class, "updateStudent"]);
-Route::delete("/students/{id}", [StudentsController::class, "deleteStudent"]);
-Route::get("/search-students/{name}", [StudentsController::class, "searchStudent"]);
+
 
 /*
 |--------------------------------------------------------------------------
@@ -129,10 +124,18 @@ Route::get('/active-sessions', [SessionController::class, 'activeSessions']);
 
 /*
 |--------------------------------------------------------------------------
-| ROLE & PERMISSION (SANCTUM)
+| ROLE & PERMISSION (SANCTUM) + STUDENTS CRUD
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get("/students", [StudentsController::class, "list"]);
+    Route::post("/students", [StudentsController::class, "addStudent"]);
+    Route::get("/students/{id}", [StudentsController::class, "editStudent"]);
+    Route::put("/students/{id}", [StudentsController::class, "updateStudent"]);
+    Route::delete("/students/{id}", [StudentsController::class, "deleteStudent"]);
+    Route::get("/search-students/{name}", [StudentsController::class, "searchStudent"]);
+    Route::get("/teacher/{teacher_id}/approved-students", [StudentsController::class, "teacherStudents"]);
+
     Route::post('/create-permission', [RoleController::class, 'createPermission']);
     Route::post('/assign-role', [RoleController::class, 'assignRole']);
     Route::post('/assign-permission', [RoleController::class, 'assignPermissionToRole']);

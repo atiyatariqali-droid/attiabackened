@@ -30,6 +30,11 @@ class User extends Authenticatable
         'role',
         'latitude',
         'longitude',
+        'status',
+        'class',
+        'roll_no',
+        'teacher_id',
+        'phone',
     ];
 
     /**

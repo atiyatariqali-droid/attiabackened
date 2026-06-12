@@ -13,7 +13,7 @@ class StudentsController extends Controller
     function list(){
         return response()->json([
             "success" => true,
-            "data" => Students::where('role', 'student')->get()
+            "data" => Students::where('role', 'student')->where('status', 1)->get()
         ]);
     }
 
@@ -25,8 +25,13 @@ class StudentsController extends Controller
             'username' => 'required',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|min:6',
-            'phone' => 'nullable'
+            'phone' => 'nullable',
+            'class' => 'nullable|string',
+            'roll_no' => 'nullable|string',
         ]);
+
+        $userRole = $request->user() ? $request->user()->role : 'teacher';
+        $status = ($userRole === 'admin') ? 1 : 0;
 
         $student = new Students();
         $student->username = $request->username;
@@ -34,11 +39,15 @@ class StudentsController extends Controller
         $student->password = bcrypt($request->password);
         $student->phone = $request->phone;
         $student->role = 'student';
+        $student->status = $status;
+        $student->class = $request->class;
+        $student->roll_no = $request->roll_no;
+        $student->teacher_id = ($userRole === 'teacher') ? $request->user()->id : null;
 
         if($student->save()){
             return response()->json([
                 "success" => true,
-                "message" => "Student added successfully"
+                "message" => $status === 1 ? "Student added successfully" : "Student submitted for approval"
             ]);
         }
 
@@ -84,13 +93,17 @@ class StudentsController extends Controller
             'username' => 'required',
             'email' => 'required|email|unique:users,email,'.$id,
             'password' => 'nullable|min:6',
-            'phone' => 'nullable'
+            'phone' => 'nullable',
+            'class' => 'nullable|string',
+            'roll_no' => 'nullable|string',
         ]);
 
         $data = [
             'username' => $request->username,
             'email' => $request->email,
-            'phone' => $request->phone
+            'phone' => $request->phone,
+            'class' => $request->class,
+            'roll_no' => $request->roll_no,
         ];
 
         if($request->password){
@@ -144,6 +157,32 @@ class StudentsController extends Controller
         return response()->json([
             "success" => true,
             "data" => $students
+        ]);
+    }
+
+    // ─────────────────────────────
+    // LIST TEACHER'S STUDENTS
+    // ─────────────────────────────
+    public function teacherStudents($teacher_id)
+    {
+        $query = Students::where('role', 'student')->where('status', 1);
+
+        if ($teacher_id && $teacher_id != '0') {
+            $query->where('teacher_id', $teacher_id);
+        }
+
+        $students = $query->get()->map(function($s) {
+            return [
+                'id' => $s->id,
+                'name' => $s->username,
+                'class' => $s->class ?? 'N/A',
+                'roll_no' => $s->roll_no ?? 'N/A',
+                'student_status' => $s->status == 1 ? 'Active' : 'Pending',
+            ];
+        });
+
+        return response()->json([
+            'students' => $students
         ]);
     }
 }
