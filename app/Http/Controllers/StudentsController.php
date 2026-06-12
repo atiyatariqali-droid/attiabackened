@@ -30,7 +30,16 @@ class StudentsController extends Controller
             'roll_no' => 'nullable|string',
         ]);
 
-        $userRole = $request->user() ? $request->user()->role : 'teacher';
+        $user = $request->user();
+
+$userRole = $user ? $user->role : null;
+
+if (!$userRole) {
+    return response()->json([
+        "success" => false,
+        "message" => "Unauthorized"
+    ], 401);
+}
         $status = ($userRole === 'admin') ? 1 : 0;
 
         $student = new Students();
@@ -81,43 +90,42 @@ class StudentsController extends Controller
     // ─────────────────────────────
     function updateStudent(Request $request, $id){
         $student = Students::where('id', $id)->where('role', 'student')->first();
-
+    
         if(!$student){
             return response()->json([
                 "success" => false,
                 "message" => "Student not found"
             ], 404);
         }
-
+    
         $request->validate([
             'username' => 'required',
-            'email' => 'required|email|unique:users,email,'.$id,
+            'email'    => 'required|email|unique:users,email,' . $id,  // ← sirf yeh badla
             'password' => 'nullable|min:6',
-            'phone' => 'nullable',
-            'class' => 'nullable|string',
-            'roll_no' => 'nullable|string',
+            'phone'    => 'nullable',
+            'class'    => 'nullable|string',
+            'roll_no'  => 'nullable|string',
         ]);
-
+    
         $data = [
             'username' => $request->username,
-            'email' => $request->email,
-            'phone' => $request->phone,
-            'class' => $request->class,
-            'roll_no' => $request->roll_no,
+            'email'    => $request->email,
+            'phone'    => $request->phone,
+            'class'    => $request->class,
+            'roll_no'  => $request->roll_no,
         ];
-
+    
         if($request->password){
             $data['password'] = bcrypt($request->password);
         }
-
+    
         $student->update($data);
-
+    
         return response()->json([
             "success" => true,
             "message" => "Student updated successfully"
         ]);
     }
-
     // ─────────────────────────────
     // DELETE STUDENT
     // ─────────────────────────────

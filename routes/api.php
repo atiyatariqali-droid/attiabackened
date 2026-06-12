@@ -88,11 +88,12 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
 Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::get("/pending-students", [PendingStudentController::class, "list"]);
-    Route::post("/pending-students", [PendingStudentController::class, "store"]);
+    
     Route::post("/pending-students/approve/{id}", [PendingStudentController::class, "approve"]);
     Route::post("/pending-students/reject/{id}", [PendingStudentController::class, "reject"]);
     Route::post("/pending-students/approve-all", [PendingStudentController::class, "approveAll"]);
 });
+
 /*
 |--------------------------------------------------------------------------
 | MANAGE CLASSES ROUTES (FIXED FOR FLUTTER)
