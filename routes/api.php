@@ -90,7 +90,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::delete("/roles/{id}", [RoleController::class, "deleteRole"]);
 });
 
-Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::get("/pending-students", [PendingStudentController::class, "list"]);
     Route::post("/pending-students", [PendingStudentController::class, "store"]);
