@@ -12,6 +12,7 @@ use App\Http\Controllers\SystemSettingController;
 use App\Http\Controllers\SystemConfiController;
 use App\Http\Controllers\StudentsController;
 use App\Http\Controllers\PendingStudentController;
+use App\Http\Controllers\SessionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -115,6 +116,9 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
 
 // Mark attendance
 Route::post('/mark-attendance', [AttendanceController::class, 'markAttendance']);
+
+// Create session
+Route::post('/create-session', [SessionController::class, 'createSession']);
 
 // Session
 Route::post('/login-session',       [UserSessionController::class, 'login']);
