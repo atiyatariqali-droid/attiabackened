@@ -8,138 +8,101 @@ use App\Models\User;
 
 class PendingStudentController extends Controller
 {
-    // List all pending students
+    // List all pending students - Flutter ko direct array chahiye
     public function list()
     {
-        $pending = PendingStudent::all()->map(function ($s) {
-            $teacher = User::find($s->teacher_id);
-            return [
-                'id' => $s->id,
-                'name' => $s->name,
-                'class' => $s->class,
-                'roll_no' => $s->roll_no,
-                'student_status' => $s->student_status,
-                'teacher_id' => $s->teacher_id,
-                'teacher_name' => $teacher ? $teacher->username : 'Teacher',
-                'approval_status' => $s->approval_status,
-                'created_at' => $s->created_at ? $s->created_at->diffForHumans() : 'Just Now',
-            ];
-        });
+        $pending = PendingStudent::where('approval_status', 'pending') // sirf pending wale
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($s) {
+                $teacher = $s->teacher_id ? User::find($s->teacher_id) : null;
+                return [
+                    'id' => $s->id,
+                    'name' => $s->name,
+                    'class' => $s->class,
+                    'roll_no' => $s->roll_no,
+                    'student_status' => $s->student_status,
+                    'teacher_name' => $teacher ? $teacher->username : 'Admin', // Flutter isi key se read karega
+                    'created_at' => $s->created_at ? $s->created_at->diffForHumans() : 'Just Now',
+                ];
+            });
 
-        return response()->json([
-            'success' => true,
-            'pending_students' => $pending
-        ]);
+        return response()->json($pending); // wrapper hata diya
     }
 
     // Add a student in pending state
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string',
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
             'class' => 'required|string',
             'roll_no' => 'required|string',
             'student_status' => 'nullable|string',
-            'teacher_id' => 'nullable',
+            'teacherId' => 'nullable|string', // Flutter yahi bhej raha hai
         ]);
 
-        $pending = PendingStudent::create([
-            'name' => $request->name,
-            'class' => $request->class,
-            'roll_no' => $request->roll_no,
-            'student_status' => $request->student_status ?? 'Active',
-            'teacher_id' => $request->teacher_id,
+        PendingStudent::create([
+            'name' => $validated['name'],
+            'class' => $validated['class'],
+            'roll_no' => $validated['roll_no'],
+            'student_status' => $validated['student_status'] ?? 'Active',
+            'teacher_id' => $validated['teacherId'] ?? null, // Admin = null
             'approval_status' => 'pending',
         ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Student approval request submitted successfully',
-            'data' => $pending
-        ], 201);
+        return response()->json(['success' => true], 201);
     }
 
-    // Approve student (adds to users table, status active, deletes pending record)
+    // Approve student
     public function approve($id)
     {
         $pending = PendingStudent::find($id);
-
         if (!$pending) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Pending request not found'
-            ], 404);
+            return response()->json(['success' => false, 'message' => 'Pending request not found'], 404);
         }
 
-        // Generate email/password since table users columns are NOT nullable
         $cleanName = str_replace(' ', '', strtolower($pending->name));
         $email = $cleanName . '_' . strtolower($pending->roll_no) . '@school.com';
 
-        // Check if email already exists in users to prevent unique constraint crash
-        $existing = User::where('email', $email)->first();
-        if ($existing) {
+        if (User::where('email', $email)->exists()) {
             $email = $cleanName . '_' . strtolower($pending->roll_no) . '_' . rand(100, 999) . '@school.com';
         }
 
-        // Create student in users table
-        $user = User::create([
+        User::create([
             'username' => $pending->name,
             'email' => $email,
-            'password' => bcrypt('123456'), // default password
+            'password' => bcrypt('123456'),
             'phone' => null,
             'role' => 'student',
         ]);
 
-        // Delete pending request
         $pending->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Student approved and added successfully',
-            'student' => $user
-        ]);
+        return response()->json(['success' => true]);
     }
 
-    // Reject student (deletes pending record)
+    // Reject student
     public function reject($id)
     {
-        $pending = PendingStudent::find($id);
-
-        if (!$pending) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Pending request not found'
-            ], 404);
-        }
-
-        $pending->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Student request rejected successfully'
-        ]);
+        PendingStudent::find($id)?->delete();
+        return response()->json(['success' => true]);
     }
 
     // Approve all selected students
     public function approveAll(Request $request)
     {
         $ids = $request->input('ids', []);
-
         if (empty($ids)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No IDs provided'
-            ], 400);
+            return response()->json(['success' => false, 'message' => 'No IDs provided'], 400);
         }
 
-        $pendingStudents = PendingStudent::whereIn('id', $ids)->get();
+        $pendings = PendingStudent::whereIn('id', $ids)->get();
 
-        foreach ($pendingStudents as $pending) {
+        foreach ($pendings as $pending) {
             $cleanName = str_replace(' ', '', strtolower($pending->name));
             $email = $cleanName . '_' . strtolower($pending->roll_no) . '@school.com';
 
-            $existing = User::where('email', $email)->first();
-            if ($existing) {
+            if (User::where('email', $email)->exists()) {
                 $email = $cleanName . '_' . strtolower($pending->roll_no) . '_' . rand(100, 999) . '@school.com';
             }
 
@@ -154,9 +117,6 @@ class PendingStudentController extends Controller
             $pending->delete();
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Selected student requests approved'
-        ]);
+        return response()->json(['success' => true]);
     }
 }

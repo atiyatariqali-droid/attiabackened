@@ -75,11 +75,7 @@ Route::get("/search-students/{name}", [StudentsController::class, "searchStudent
 | PENDING STUDENTS ROUTES
 |--------------------------------------------------------------------------
 */
-Route::get("/pending-students", [PendingStudentController::class, "list"]);
-Route::post("/pending-students", [PendingStudentController::class, "store"]);
-Route::post("/pending-students/approve/{id}", [PendingStudentController::class, "approve"]);
-Route::post("/pending-students/reject/{id}", [PendingStudentController::class, "reject"]);
-Route::post("/pending-students/approve-all", [PendingStudentController::class, "approveAll"]);
+
 
 /*
 |--------------------------------------------------------------------------
@@ -94,6 +90,14 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::delete("/roles/{id}", [RoleController::class, "deleteRole"]);
 });
 
+Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+
+    Route::get("/pending-students", [PendingStudentController::class, "list"]);
+    Route::post("/pending-students", [PendingStudentController::class, "store"]);
+    Route::post("/pending-students/approve/{id}", [PendingStudentController::class, "approve"]);
+    Route::post("/pending-students/reject/{id}", [PendingStudentController::class, "reject"]);
+    Route::post("/pending-students/approve-all", [PendingStudentController::class, "approveAll"]);
+});
 /*
 |--------------------------------------------------------------------------
 | MANAGE CLASSES ROUTES (FIXED FOR FLUTTER)
@@ -134,4 +138,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/assign-permission', [RoleController::class, 'assignPermissionToRole']);
     Route::get('/check-access', [RoleController::class, 'checkAccess']);
     Route::apiResource('settings', SystemSettingController::class);
+
+
 });
