@@ -15,5 +15,6 @@ class Teachers extends Model
         'phone',
         'role',
         'status',
+        'device_mac_address', 
     ];
 }

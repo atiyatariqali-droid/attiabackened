@@ -25,7 +25,8 @@ class TeachersController extends Controller
             'username' => 'required',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|min:6',
-            'phone' => 'nullable'
+            'phone' => 'nullable',
+            'device_mac_address' => 'nullable|string',
         ]);
 
         $teacher = new Teachers();
@@ -34,7 +35,8 @@ class TeachersController extends Controller
         $teacher->password = bcrypt($request->password);
         $teacher->phone = $request->phone;
         $teacher->role = 'teacher';
-        $teacher->status = 1; // active by default
+        $teacher->status = 1; 
+        $teacher->device_mac_address = $request->device_mac_address; 
 
         if($teacher->save()){
             return response()->json([
@@ -91,7 +93,8 @@ class TeachersController extends Controller
         $data = [
             'username' => $request->username,
             'email' => $request->email,
-            'phone' => $request->phone
+            'phone' => $request->phone,
+            'device_mac_address' => $request->device_mac_address,
         ];
 
         if($request->password){

@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('role')->default('student');
             $table->integer('status')->default(1); // 1 = active, 0 = pending
             $table->string('class')->nullable();
+            $table->string('mac_address')->nullable();
             $table->string('roll_no')->nullable();
             $table->foreignId('teacher_id')->nullable()->constrained('users')->nullOnDelete();
         });
