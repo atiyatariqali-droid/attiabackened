@@ -9,6 +9,9 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\UserSessionController;
 use App\Http\Controllers\SystemSettingController; 
+use App\Http\Controllers\SystemConfiController;
+use App\Http\Controllers\StudentsController;
+use App\Http\Controllers\PendingStudentController;
 
 
 
@@ -59,9 +62,15 @@ Route::get("/search-teachers/{name}", [TeachersController::class, "searchTeacher
 
 /*
 |--------------------------------------------------------------------------
-| STUDENTS ROUTES (CRUD)
+| CLASSES ROUTES (CRUD)
 |--------------------------------------------------------------------------
 */
+Route::get("/classes", [ManageClassController::class, "list"]);
+Route::post("/classes", [ManageClassController::class, "addClass"]);
+Route::get("/classes/{id}", [ManageClassController::class, "editClass"]);
+Route::put("/classes/{id}", [ManageClassController::class, "updateClass"]);
+Route::delete("/classes/{id}", [ManageClassController::class, "deleteClass"]);
+Route::get("/search-classes/{name}", [ManageClassController::class, "searchClass"]);
 
 
 /*
@@ -85,6 +94,21 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
 });
 
 Route::middleware(['auth:sanctum'])->group(function () {
+    // Students CRUD
+    Route::get("/students", [StudentsController::class, "list"]);
+    Route::post("/students", [StudentsController::class, "addStudent"]);
+    Route::get("/students/{id}", [StudentsController::class, "editStudent"]);
+    Route::put("/students/{id}", [StudentsController::class, "updateStudent"]);
+    Route::delete("/students/{id}", [StudentsController::class, "deleteStudent"]);
+    Route::get("/search-students/{name}", [StudentsController::class, "searchStudent"]);
+    Route::get("/teacher/{teacher_id}/approved-students", [StudentsController::class, "teacherStudents"]);
+
+    // Pending Students
+    Route::get("/pending-students", [PendingStudentController::class, "list"]);
+    Route::post("/pending-students", [PendingStudentController::class, "store"]);
+    Route::post("/pending-students/approve/{id}", [PendingStudentController::class, "approve"]);
+    Route::post("/pending-students/reject/{id}", [PendingStudentController::class, "reject"]);
+    Route::post("/pending-students/approve-all", [PendingStudentController::class, "approveAll"]);
 
     Route::post('/create-role', [RoleController::class, 'createRole']);
     //Route::get('/session', [UserController::class, 'getSession']);

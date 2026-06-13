@@ -11,16 +11,12 @@ class UserController extends Controller
 {
     public function login(Request $request)
     {
-<<<<<<< HEAD
-        
-=======
         // validation don’t skip this
->>>>>>> e91de8e82a2dc47e7dbd9fb7cddb699a091a14e8
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
-            'longitude' => 'required|numeric',
-            'latitude' => 'required|numeric',
+            // 'longitude' => 'required|numeric',
+            // 'latitude' => 'required|numeric',
         ]);
 
         info("Login attempt for email: " . $request->email);
