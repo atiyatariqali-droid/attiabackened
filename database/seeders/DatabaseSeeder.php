@@ -27,5 +27,8 @@ class DatabaseSeeder extends Seeder
        $this->call([
           ManageClassesSeeder::class,
         ]);
+        $this->call([
+            SystemSettings::class
+        ]);
     }
 }
