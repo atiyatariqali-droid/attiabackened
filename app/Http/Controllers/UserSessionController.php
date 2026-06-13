@@ -12,6 +12,7 @@ use Carbon\Carbon;
 
 class UserSessionController extends Controller
 {
+<<<<<<< HEAD
     // Calculate distance in meters using Haversine formula
     private function calculateDistance($lat1, $lon1, $lat2, $lon2)
     {
@@ -28,19 +29,53 @@ class UserSessionController extends Controller
     /**
      * USER LOGIN SESSION
      */
+=======
+    
+     // Calculate distance using Haversine formula
+     
+    private function calculateDistance($teacherLat, $teacherLng, $schoolLat, $schoolLng)
+    {
+        $config = SystemConfi::first();
+         if (!$config || !$config->latitude || !$config->longitude) {
+        return null;
+    }
+    $schoolLat = $config->latitude;
+    $schoolLng = $config->longitude;
+
+        $earthRadius = 6371; // KM
+      
+    $dLat = deg2rad($schoolLat - $teacherLat);
+    $dLng = deg2rad($schoolLng - $teacherLng);
+
+    $a = sin($dLat / 2) * sin($dLat / 2) +
+        cos(deg2rad($teacherLat)) *
+        cos(deg2rad($schoolLat)) *
+        sin($dLng / 2) * sin($dLng / 2);
+    $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+     return round($earthRadius * $c, 2);   
+    }
+
+    
+    // User Login Session
+     
+>>>>>>> e91de8e82a2dc47e7dbd9fb7cddb699a091a14e8
     public function login(Request $request)
     {
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
             'device_id' => 'required',
+<<<<<<< HEAD
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric'
+=======
+            'latitude' => 'required',
+            'longitude' => 'required'
+>>>>>>> e91de8e82a2dc47e7dbd9fb7cddb699a091a14e8
         ]);
-
         $user = User::where('email', $request->email)->first();
-
         if (!$user || !Hash::check($request->password, $user->password)) {
+<<<<<<< HEAD
             return response()->json(['message' => 'Invalid Credentials'], 401);
         }
  
@@ -63,12 +98,20 @@ class UserSessionController extends Controller
 
         // Allow or reject range
         if ($distance > $allowedDistance) {
+=======
+>>>>>>> e91de8e82a2dc47e7dbd9fb7cddb699a091a14e8
             return response()->json([
                 'message' => 'Login Failed: Out of Range',
                 'distance' => round($distance, 2)
             ], 403);
         }
+ 
+        // Get school coordinates
+        $config = SystemConfi::first();
+        $schoolLat = $config->latitude;
+        $schoolLng = $config->longitude;
 
+<<<<<<< HEAD
         // Deactivate old sessions
         UserSession::where('user_id', $user->id)->where('is_active', true)->update(['is_active' => false]);
 
@@ -127,6 +170,67 @@ class UserSessionController extends Controller
     public function activeSessions()
     {
         $sessions = UserSession::where('is_active', true)->with('user')->get();
+=======
+        // Check allowed range
+        $distance = $this->calculateDistance(
+            $request->latitude,
+            $request->longitude,
+            $schoolLat,
+            $schoolLng
+        );
+        $allowedDistance = 100;
+
+        //Allow or reject range
+            if ($distance > $allowedDistance) {
+                return response()->json([
+                    'message' => 'Login Failed: Out of Range',
+                    'distance' => round($distance, 2)
+                ], 403);
+            }
+
+        // TODO: Add distance validation logic here
+    return response()->json([
+    'message' => 'Login Successful',
+    'distance_km' => round($distance, 2),
+
+    'school_location' => [
+        'latitude' => $schoolLat,
+        'longitude' => $schoolLng,
+        'google_map_url' => $schoolMapUrl
+    ],
+
+    'teacher_location' => [
+        'latitude' => $request->latitude,
+        'longitude' => $request->longitude,
+        'google_map_url' => $teacherMapUrl
+    ]
+]);      
+       
+    }
+
+    // Logout Session
+    public function logout($id)
+    {
+        $session = UserSession::find($id);
+        if (!$session) {
+            return response()->json([
+                'message' => 'Session Not Found'
+            ], 404);
+        }
+        $session->update([
+            'logout_time' => now(),
+            'is_active' => false
+        ]);
+        return response()->json([
+            'message' => 'Logout Successful'
+        ]);
+    }
+
+    //Get Active Sessions 
+    public function activeSessions()
+    {
+        $sessions = UserSession::where('is_active', true)->get();
+>>>>>>> e91de8e82a2dc47e7dbd9fb7cddb699a091a14e8
         return response()->json($sessions);
     }
 

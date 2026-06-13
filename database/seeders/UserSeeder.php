@@ -129,5 +129,24 @@ class UserSeeder extends Seeder
                 'roll_no' => '2002'
             ]
         );
+<<<<<<< HEAD
+=======
+  // teacher ky liye
+         User::create([
+            'username' => 'teacher1',
+            'email' => 'teacher1@gmail.com',
+            'password' => bcrypt('123456'),
+            'phone' => '03001234567',
+            'role' => 'teacher'
+        ]);
+        //student ky liye
+        User::create([
+            'username' => 'student1',
+            'email' => 'student1@gmail.com',
+            'password' => bcrypt('123456'),
+            'phone' => '03111234567',
+            'role' => 'student'
+        ]);
+>>>>>>> e91de8e82a2dc47e7dbd9fb7cddb699a091a14e8
     }
 }

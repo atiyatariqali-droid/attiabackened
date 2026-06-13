@@ -22,6 +22,11 @@ return new class extends Migration
             $table->timestamp('logout_time')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
+              // Foreign key constraint
+            $table->foreign('user_id')
+            ->references('id')
+            ->on('users')
+            ->onDelete('cascade');
         });
     }
 
