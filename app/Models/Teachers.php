@@ -15,6 +15,16 @@ class Teachers extends Model
         'phone',
         'role',
         'status',
-        'device_mac_address', 
+        'device_mac_address',
+    ];
+
+    // ✅ Hide sensitive fields from API responses
+    protected $hidden = [
+        'password',
+    ];
+
+    // ✅ Cast status to integer for consistency
+    protected $casts = [
+        'status' => 'integer',
     ];
 }
