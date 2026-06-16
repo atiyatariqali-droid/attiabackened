@@ -76,31 +76,22 @@ class SessionController extends Controller
     }
 
     // Fixed Haversine formula - calculates distance in meters
-private function calculateDistance($teacherLat, $teacherLng)
-{
-    $config = SystemSetting::first();
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2)
+    {
+        $earthRadius = 6371000; // meters
 
-    if (!$config || !$config->latitude || !$config->longitude) {
-        return null;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+            cos(deg2rad($lat1)) *
+            cos(deg2rad($lat2)) *
+            sin($dLon / 2) * sin($dLon / 2);
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return $earthRadius * $c;
     }
-
-    $schoolLat = $config->latitude;
-    $schoolLng = $config->longitude;
-
-    $earthRadius = 6371; // KM
-
-    $dLat = deg2rad($schoolLat - $teacherLat);
-    $dLng = deg2rad($schoolLng - $teacherLng);
-
-    $a = sin($dLat / 2) * sin($dLat / 2) +
-        cos(deg2rad($teacherLat)) *
-        cos(deg2rad($schoolLat)) *
-        sin($dLng / 2) * sin($dLng / 2);
-
-    $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
-
-    return round($earthRadius * $c, 2);
-}
 
     public function login(Request $request)
     {
