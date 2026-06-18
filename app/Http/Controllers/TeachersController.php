@@ -97,21 +97,21 @@ class TeachersController extends Controller
 
         // ✅ FIX 4: unique rule now correctly ignores the current teacher's own row
         //           using the actual DB id — prevents false unique email validation failure
-        // ✅ FIX 5: device_mac_address added to validation
+        // ✅ FIX 5: device_id added to validation
         $validated = $request->validate([
-            'username'           => 'required|string|max:255',
-            'email'              => 'required|email|unique:users,email,' . $teacher->id,
-            'password'           => 'nullable|min:6',
-            'phone'              => 'nullable|string|max:20',
-            'device_mac_address' => 'nullable|string|max:255',
+            'username'  => 'required|string|max:255',
+            'email'     => 'required|email|unique:users,email,' . $teacher->id,
+            'password'  => 'nullable|min:6',
+            'phone'     => 'nullable|string|max:20',
+            'device_id' => 'nullable|string|max:255',
         ]);
 
         // ✅ FIX 6: Build update array from validated data only
         $data = [
-            'username'           => $validated['username'],
-            'email'              => $validated['email'],
-            'phone'              => $validated['phone'] ?? $teacher->phone,
-            'device_mac_address' => $validated['device_mac_address'] ?? null,
+            'username'  => $validated['username'],
+            'email'     => $validated['email'],
+            'phone'     => $validated['phone'] ?? $teacher->phone,
+            'device_id' => $validated['device_id'] ?? null,
         ];
 
         // ✅ Only update password if provided
@@ -172,5 +172,71 @@ class TeachersController extends Controller
             "success" => true,
             "data"    => $teachers
         ]);
+    }
+
+    // ─────────────────────────────
+    // SELF-REGISTER TEACHER (PENDING)
+    // ─────────────────────────────
+    public function registerTeacher(Request $request)
+    {
+        $validated = $request->validate([
+            'username'  => 'required|string|max:255',
+            'email'     => 'required|email|unique:users,email',
+            'password'  => 'required|min:6',
+            'phone'     => 'nullable|string|max:20',
+            'device_id' => 'required|string|max:255',
+        ]);
+
+        $teacher = new Teachers();
+        $teacher->username = $validated['username'];
+        $teacher->email    = $validated['email'];
+        $teacher->password = bcrypt($validated['password']);
+        $teacher->phone    = $validated['phone'] ?? null;
+        $teacher->role     = 'teacher';
+        $teacher->status   = 0; // pending by default for self-registration!
+        $teacher->device_id = $validated['device_id'];
+
+        if ($teacher->save()) {
+            return response()->json([
+                "success" => true,
+                "message" => "Registration successful. Pending admin approval.",
+                "data"    => $teacher
+            ], 201);
+        }
+
+        return response()->json([
+            "success" => false,
+            "message" => "Failed to register teacher"
+        ], 500);
+    }
+
+    // ─────────────────────────────
+    // APPROVE TEACHER
+    // ─────────────────────────────
+    public function approve($id)
+    {
+        $teacher = Teachers::where('id', $id)
+                           ->where('role', 'teacher')
+                           ->first();
+
+        if (!$teacher) {
+            return response()->json([
+                "success" => false,
+                "message" => "Teacher not found"
+            ], 404);
+        }
+
+        $teacher->status = 1;
+        if ($teacher->save()) {
+            return response()->json([
+                "success" => true,
+                "message" => "Teacher approved successfully"
+            ]);
+        }
+
+        return response()->json([
+            "success" => false,
+            "message" => "Failed to approve teacher"
+        ], 500);
     }
 }

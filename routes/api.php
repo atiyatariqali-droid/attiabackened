@@ -42,6 +42,7 @@ Route::get("/test", function () {
 |--------------------------------------------------------------------------
 */
 Route::post("/login", [UserController::class, "login"])->name('login');
+Route::post("/register-teacher", [TeachersController::class, "registerTeacher"]);
 
 /*
 |--------------------------------------------------------------------------
@@ -58,6 +59,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put("/teachers/{id}",          [TeachersController::class, "updateTeacher"]);
     Route::delete("/teachers/{id}",       [TeachersController::class, "deleteTeacher"]);
     Route::get("/search-teachers/{name}", [TeachersController::class, "searchTeacher"]);
+    Route::post("/teachers/approve/{id}", [TeachersController::class, "approve"]);
 });
 
 /*

@@ -50,6 +50,7 @@ class UserController extends Controller
     'success' => true,
     'message' => 'Login successful',
     "result" => [
+        "id" => $user->id,
         "username" => $user->username,   
         "email" => $user->email,
         "token" => $token,
