@@ -15,7 +15,7 @@ class Teachers extends Model
         'phone',
         'role',
         'status',
-        'device_mac_address',
+        'device_id',
     ];
 
     // ✅ Hide sensitive fields from API responses

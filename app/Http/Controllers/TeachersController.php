@@ -30,7 +30,7 @@ class TeachersController extends Controller
             'email'              => 'required|email|unique:users,email',
             'password'           => 'required|min:6',
             'phone'              => 'nullable|string|max:20',
-            'device_mac_address' => 'nullable|string|max:255',
+            'device_id' => 'nullable|string|max:255',
         ]);
 
         // ✅ FIX 3: Use validated data only — prevents unexpected field injection
@@ -41,7 +41,7 @@ class TeachersController extends Controller
         $teacher->phone              = $validated['phone'] ?? null;
         $teacher->role               = 'teacher';   // always forced server-side
         $teacher->status             = 1;           // active by default
-        $teacher->device_mac_address = $validated['device_mac_address'] ?? null;
+        $teacher->device_id = $validated['device_id'] ?? null;
 
         if ($teacher->save()) {
             return response()->json([

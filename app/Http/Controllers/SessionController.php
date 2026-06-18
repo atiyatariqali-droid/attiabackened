@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Session;
 use App\Models\SystemSetting;
+use App\Models\Teachers;
 use Carbon\Carbon;
 
 class SessionController extends Controller
@@ -21,7 +22,22 @@ class SessionController extends Controller
         // Step 1: Get campus lat/lng from system_settings table
         $campusLat = (float) SystemSetting::where('key', 'latitude')->value('value');
         $campusLng = (float) SystemSetting::where('key', 'longitude')->value('value');
+         //device 
+         $teacher = Teachers::find($request->teacher_id);
 
+if (!$teacher) {
+    return response()->json([
+        'success' => false,
+        'message' => 'Teacher not found'
+    ], 404);
+}
+// if ($teacher->device_mac_address !== $request->device_mac_address) {
+//     return response()->json([
+//         'success' => false,
+//         'message' => 'Unregistered device. Session not allowed.'
+//     ], 403);
+// }//me
+      //campus location
         if (!$campusLat || !$campusLng) {
             return response()->json([
                 'success' => false,

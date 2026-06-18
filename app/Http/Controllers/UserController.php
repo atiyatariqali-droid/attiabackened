@@ -15,22 +15,38 @@ class UserController extends Controller
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
-            // 'longitude' => 'required|numeric',
-            // 'latitude' => 'required|numeric',
+            'device_id' => 'required',
         ]);
-
-        info("Login attempt for email: " . $request->email);
-
+   //user find ky liye
         $user = User::where("email", $request->email)->first();
 
         if (!$user) {
-            return [
+            return response()->json([
                 "success" => false,
                 "error" => "Invalid credentials"
-            ];
+            ], 401);
         }
+
+        // 3. Password check
+    if (!Hash::check($request->password, $user->password)) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Invalid credentials'
+        ], 401);
+    }
+
+    // 4. Device ID check
+    // if ($user->device_id != $request->device_id) {
+    //     return response()->json([
+    //         'success' => false,
+    //         'message' => 'This device is not authorized'
+    //     ], 403);
+    // }
+
+    //create token
         $token = $user->createToken("auth_token")->plainTextToken;
-        return[
+       //success response
+        return response()->json([
     'success' => true,
     'message' => 'Login successful',
     "result" => [
@@ -39,7 +55,7 @@ class UserController extends Controller
         "token" => $token,
         "role" => $user->role
     ]
-    ];
+    ]);
            
          // Create Session
         session([
