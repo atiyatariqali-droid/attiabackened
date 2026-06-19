@@ -23,8 +23,8 @@ class TeachersController extends Controller
     // ─────────────────────────────
     public function addTeacher(Request $request)
     {
-        // ✅ FIX 1: Added device_mac_address to validation
-        // ✅ FIX 2: Explicit 422 response with validation errors so Flutter can debug
+        //  Added device_mac_address to validation
+        //  Explicit 422 response with validation errors so Flutter can debug
         $validated = $request->validate([
             'username'           => 'required|string|max:255',
             'email'              => 'required|email|unique:users,email',
@@ -33,7 +33,7 @@ class TeachersController extends Controller
             'device_id' => 'nullable|string|max:255',
         ]);
 
-        // ✅ FIX 3: Use validated data only — prevents unexpected field injection
+        // Use validated data only — prevents unexpected field injection
         $teacher = new Teachers();
         $teacher->username           = $validated['username'];
         $teacher->email              = $validated['email'];
@@ -95,26 +95,26 @@ class TeachersController extends Controller
             ], 404);
         }
 
-        // ✅ FIX 4: unique rule now correctly ignores the current teacher's own row
+        //  unique rule now correctly ignores the current teacher's own row
         //           using the actual DB id — prevents false unique email validation failure
-        // ✅ FIX 5: device_mac_address added to validation
+        //  device_mac_address added to validation
         $validated = $request->validate([
             'username'           => 'required|string|max:255',
             'email'              => 'required|email|unique:users,email,' . $teacher->id,
             'password'           => 'nullable|min:6',
             'phone'              => 'nullable|string|max:20',
-            'device_mac_address' => 'nullable|string|max:255',
+            'device_id' => 'nullable|string|max:255',
         ]);
 
-        // ✅ FIX 6: Build update array from validated data only
+        //  Build update array from validated data only
         $data = [
             'username'           => $validated['username'],
             'email'              => $validated['email'],
             'phone'              => $validated['phone'] ?? $teacher->phone,
-            'device_mac_address' => $validated['device_mac_address'] ?? null,
+            'device_id' => $validated['device_id'] ?? null,
         ];
 
-        // ✅ Only update password if provided
+        // Only update password if provided
         if (!empty($validated['password'])) {
             $data['password'] = bcrypt($validated['password']);
         }

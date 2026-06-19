@@ -36,12 +36,14 @@ class UserController extends Controller
     }
 
     // 4. Device ID check
-    // if ($user->device_id != $request->device_id) {
-    //     return response()->json([
-    //         'success' => false,
-    //         'message' => 'This device is not authorized'
-    //     ], 403);
-    // }
+    // info("DB DEVICE ID: " . $user->device_id);
+    // info("REQUEST DEVICE ID: " . $request->device_id);
+    if ($user->device_id != $request->device_id) {
+        return response()->json([
+            'success' => false,
+            'message' => 'This device is not authorized'
+        ], 403);
+    }
 
     //create token
         $token = $user->createToken("auth_token")->plainTextToken;
@@ -53,7 +55,9 @@ class UserController extends Controller
         "username" => $user->username,   
         "email" => $user->email,
         "token" => $token,
-        "role" => $user->role
+        "role" => $user->role,
+        "device_id" => $user->device_id,
+
     ]
     ]);
            
