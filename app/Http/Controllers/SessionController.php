@@ -148,10 +148,9 @@ if (!$teacher) {
 
         $className = $manageClass->class_name ?? $manageClass->name;
 
-        // Fetch students assigned to this teacher and this class
+        // Fetch students assigned to this class
         $students = Students::where('role', 'student')
             ->where('status', 1)
-            ->where('teacher_id', $session->teacher_id)
             ->where('class', $className)
             ->get();
 
@@ -171,6 +170,87 @@ if (!$teacher) {
         return response()->json([
             'success' => true,
             'data'    => Session::where('status', 'active')->get()
+        ]);
+    }
+
+    // ─────────────────────────────
+    // GET A TEACHER'S SESSIONS
+    // ─────────────────────────────
+    public function getTeacherSessions($teacher_id)
+    {
+        $sessions = Session::where('teacher_id', $teacher_id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Optionally, attach class names to the sessions
+        foreach ($sessions as $session) {
+            $class = ManageClass::find($session->class_id);
+            $session->class_name = $class ? ($class->class_name ?? $class->name) : 'Unknown';
+        }
+
+        return response()->json([
+            'success' => true,
+            'data'    => $sessions
+        ]);
+    }
+
+    // ─────────────────────────────
+    // END SESSION (Mark as inactive)
+    // ─────────────────────────────
+    public function endSession($id)
+    {
+        $session = Session::find($id);
+        if (!$session) {
+            return response()->json(['success' => false, 'message' => 'Session not found'], 404);
+        }
+
+        $session->status = 'inactive';
+        $session->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Session ended successfully',
+            'data'    => $session
+        ]);
+    }
+
+    // ─────────────────────────────
+    // UPDATE SESSION STATUS
+    // ─────────────────────────────
+    public function updateSessionStatus(Request $request, $id)
+    {
+        $request->validate(['status' => 'required|in:active,inactive']);
+
+        $session = Session::find($id);
+        if (!$session) {
+            return response()->json(['success' => false, 'message' => 'Session not found'], 404);
+        }
+
+        $session->status = $request->status;
+        $session->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Session status updated',
+            'data'    => $session
+        ]);
+    }
+
+    // ─────────────────────────────
+    // DELETE SESSION
+    // ─────────────────────────────
+    public function deleteSession($id)
+    {
+        $session = Session::find($id);
+        if (!$session) {
+            return response()->json(['success' => false, 'message' => 'Session not found'], 404);
+        }
+
+        $session->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Session deleted successfully'
         ]);
     }
 }
