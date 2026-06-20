@@ -7,9 +7,7 @@ use App\Http\Controllers\ManageClassController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AttendanceController;
-use App\Http\Controllers\UserSessionController;
 use App\Http\Controllers\SystemSettingController; 
-use App\Http\Controllers\SystemConfiController;
 use App\Http\Controllers\StudentsController;
 use App\Http\Controllers\PendingStudentController;
 use App\Http\Controllers\SessionController;
@@ -121,16 +119,4 @@ Route::post('/mark-attendance', [AttendanceController::class, 'markAttendance'])
 
 // Create session
 Route::post('/create-session', [SessionController::class, 'createSession']);
-
-// Session
-Route::post('/login-session',       [UserSessionController::class, 'login']);
-Route::post('/logout-session/{id}', [UserSessionController::class, 'logout']);
-Route::get('/active-sessions',      [UserSessionController::class, 'activeSessions']);
-
-// System configuration
-Route::get('/system-confi',           [SystemConfiController::class, 'index']);
-Route::post('/system-confi',          [SystemConfiController::class, 'store']);
-Route::get('/system-confi/{id}',      [SystemConfiController::class, 'show']);
-Route::put('/system-confi/{id}',      [SystemConfiController::class, 'update']);
-Route::delete('/system-confi/{id}',   [SystemConfiController::class, 'destroy']);
-Route::get('/system-confi/edit/{id}', [SystemConfiController::class, 'edit']);
+Route::get('/sessions/{id}/students', [SessionController::class, 'getSessionStudents']);

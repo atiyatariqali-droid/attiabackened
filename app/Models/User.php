@@ -35,6 +35,7 @@ class User extends Authenticatable
         'roll_no',
         'teacher_id',
         'phone',
+        'device_id',
     ];
 
     /**

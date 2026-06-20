@@ -35,13 +35,20 @@ class UserController extends Controller
         ], 401);
     }
 
-    // 4. Device ID check
-    // if ($user->device_id != $request->device_id) {
-    //     return response()->json([
-    //         'success' => false,
-    //         'message' => 'This device is not authorized'
-    //     ], 403);
-    // }
+    // 4. Device ID check (teachers only; dynamically bind device ID on first login if null)
+    if ($user->role === 'teacher') {
+        if ($user->device_id) {
+            if ($user->device_id !== $request->device_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This device is not authorized'
+                ], 403);
+            }
+        } else {
+            $user->device_id = $request->device_id;
+            $user->save();
+        }
+    }
 
     //create token
         $token = $user->createToken("auth_token")->plainTextToken;

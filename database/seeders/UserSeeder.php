@@ -18,7 +18,7 @@ class UserSeeder extends Seeder
                 'phone'              => '03001234567',
                 'role'               => 'admin',
                 'status'             => 1,
-                'device_mac_address' => 'AA:BB:CC:DD:EE:01',
+                'device_id' => null,
             ]
         );
 
@@ -31,7 +31,7 @@ class UserSeeder extends Seeder
                 'phone'              => '03009876543',
                 'role'               => 'teacher',
                 'status'             => 1,
-                'device_mac_address' => 'AA:BB:CC:DD:EE:02',
+                'device_id' => null,
             ]
         );
 
@@ -43,7 +43,7 @@ class UserSeeder extends Seeder
                 'phone'              => '03001122334',
                 'role'               => 'teacher',
                 'status'             => 1,
-                'device_mac_address' => 'AA:BB:CC:DD:EE:03',
+                'device_id' => null,
             ]
         );
 
@@ -55,7 +55,7 @@ class UserSeeder extends Seeder
                 'phone'              => '03005566778',
                 'role'               => 'teacher',
                 'status'             => 1,
-                'device_mac_address' => 'AA:BB:CC:DD:EE:04',
+                'device_id' => null,
             ]
         );
 
@@ -70,7 +70,7 @@ class UserSeeder extends Seeder
                 'status'             => 1,
                 'class'              => 'Class 5',
                 'roll_no'            => '1001',
-                'device_mac_address' => 'AA:BB:CC:DD:EE:05',
+                'device_id' => null,
             ]
         );
 
@@ -84,7 +84,7 @@ class UserSeeder extends Seeder
                 'status'             => 1,
                 'class'              => 'Class 5',
                 'roll_no'            => '1002',
-                'device_mac_address' => 'AA:BB:CC:DD:EE:06',
+                'device_id' => null,
             ]
         );
 
@@ -98,7 +98,7 @@ class UserSeeder extends Seeder
                 'status'             => 1,
                 'class'              => 'Class 5',
                 'roll_no'            => '1003',
-                'device_mac_address' => 'AA:BB:CC:DD:EE:07',
+                'device_id' => null,
             ]
         );
 
@@ -112,7 +112,7 @@ class UserSeeder extends Seeder
                 'status'             => 1,
                 'class'              => 'Class 6',
                 'roll_no'            => '2001',            // FIX: missing comma added here
-                'device_mac_address' => 'AA:BB:CC:DD:EE:08',
+                'device_id' => null,
             ]
         );
 
@@ -126,7 +126,7 @@ class UserSeeder extends Seeder
                 'status'             => 1,
                 'class'              => 'Class 6',
                 'roll_no'            => '2002',
-                'device_mac_address' => 'AA:BB:CC:DD:EE:09',
+                'device_id' => null,
             ]
         );
 
@@ -140,7 +140,7 @@ class UserSeeder extends Seeder
                 'phone'              => '03001234567',
                 'role'               => 'teacher',
                 'status'             => 1,
-                'device_mac_address' => 'AA:BB:CC:DD:EE:10',
+                'device_id' => null,
             ]
         );
 
@@ -152,7 +152,7 @@ class UserSeeder extends Seeder
                 'phone'              => '03111234567',
                 'role'               => 'student',
                 'status'             => 1,
-                'device_mac_address' => 'AA:BB:CC:DD:EE:11',
+                'device_id' => null,
             ]
         );
     }

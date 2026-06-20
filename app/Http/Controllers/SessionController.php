@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\Session;
 use App\Models\SystemSetting;
 use App\Models\Teachers;
+use App\Models\ManageClass;
+use App\Models\Students;
 use Carbon\Carbon;
 
 class SessionController extends Controller
@@ -14,14 +16,13 @@ class SessionController extends Controller
     {
         $request->validate([
             'teacher_id' => 'required|integer',
-            'class_id'   => 'required|integer',
             'latitude'   => 'required|numeric',
             'longitude'  => 'required|numeric',
         ]);
 
         // Step 1: Get campus lat/lng from system_settings table
-        $campusLat = (float) SystemSetting::where('key', 'latitude')->value('value');
-        $campusLng = (float) SystemSetting::where('key', 'longitude')->value('value');
+        $campusLat = (float) SystemSetting::where('key', 'school_latitude')->value('value');
+        $campusLng = (float) SystemSetting::where('key', 'school_longitude')->value('value');
          //device 
          $teacher = Teachers::find($request->teacher_id);
 
@@ -31,12 +32,23 @@ if (!$teacher) {
         'message' => 'Teacher not found'
     ], 404);
 }
-// if ($teacher->device_mac_address !== $request->device_mac_address) {
+// if ($teacher->device_id !== $request->device_id) {
 //     return response()->json([
 //         'success' => false,
 //         'message' => 'Unregistered device. Session not allowed.'
 //     ], 403);
 // }//me
+
+        $manageClass = ManageClass::where('name', $teacher->username)->first();
+        if (!$manageClass) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No class assigned to you by admin'
+            ], 400);
+        }
+
+        $class_id = $manageClass->id;
+
       //campus location
         if (!$campusLat || !$campusLng) {
             return response()->json([
@@ -63,7 +75,7 @@ if (!$teacher) {
         }
 
         // Step 4: Check if class already has active session
-        $existing = Session::where('class_id', $request->class_id)
+        $existing = Session::where('class_id', $class_id)
                            ->where('status', 'active')
                            ->first();
 
@@ -77,7 +89,7 @@ if (!$teacher) {
         // Step 5: Create session
         $session = Session::create([
             'teacher_id' => $request->teacher_id,
-            'class_id'   => $request->class_id,
+            'class_id'   => $class_id,
             'start_time' => Carbon::now(),
             'latitude'   => $request->latitude,
             'longitude'  => $request->longitude,
@@ -112,6 +124,41 @@ if (!$teacher) {
     public function login(Request $request)
     {
         return response()->json(['success' => true, 'message' => 'Session login working']);
+    }
+
+    public function getSessionStudents($id)
+    {
+        $session = Session::find($id);
+
+        if (!$session) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Session not found'
+            ], 404);
+        }
+
+        // Get the class string name associated with the session
+        $manageClass = ManageClass::find($session->class_id);
+        if (!$manageClass) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Class not found'
+            ], 404);
+        }
+
+        $className = $manageClass->class_name ?? $manageClass->name;
+
+        // Fetch students assigned to this teacher and this class
+        $students = Students::where('role', 'student')
+            ->where('status', 1)
+            ->where('teacher_id', $session->teacher_id)
+            ->where('class', $className)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data'    => $students
+        ]);
     }
 
     public function logout($id)
