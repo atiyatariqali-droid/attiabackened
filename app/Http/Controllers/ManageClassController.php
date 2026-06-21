@@ -4,26 +4,45 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\ManageClass;
+use App\Models\Students;
+use App\Models\Teachers;
 
 class ManageClassController extends Controller
 {
     // ─────────────────────────────
     // LIST ALL CLASSES
     // ─────────────────────────────
+    
     function list(){
+        $classes = ManageClass::with('teacher')->get();
+
+        $studentCounts = Students::where('role', 'student')
+            ->whereNotNull('class')
+            ->selectRaw('class, count(*) as total')
+            ->groupBy('class')
+            ->pluck('total', 'class');
+
+        $classes = $classes->map(function ($class) use ($studentCounts) {
+            $class->students_count = $studentCounts[$class->class_name] ?? 0;
+            $class->teacher_name = $class->teacher->username ?? $class->name;
+            return $class;
+        });
+
         return response()->json([
             "success" => true,
-            "data" => ManageClass::all()
+            "data" => $classes
         ]);
     }
 
     // ─────────────────────────────
     // ADD CLASS
     // ─────────────────────────────
+
     public function addClass(Request $request)
     {
         $request->validate([
             'name' => 'required',
+            'teacher_id' => 'nullable|integer|exists:users,id',
             'class_name' => 'required',
             'students_count' => 'required|integer',
             'status' => 'required'
@@ -31,8 +50,9 @@ class ManageClassController extends Controller
 
         $manageClass = new ManageClass();
         $manageClass->name = $request->name;
+        $manageClass->teacher_id = $request->teacher_id;
         $manageClass->class_name = $request->class_name;
-$manageClass->students_count = $request->students_count;
+        $manageClass->students_count = $request->students_count;
         $manageClass->status = $request->status;
 
         if($manageClass->save()){
@@ -53,7 +73,7 @@ $manageClass->students_count = $request->students_count;
     // ─────────────────────────────
     public function editClass($id)
     {
-        $manageClass = ManageClass::find($id);
+        $manageClass = ManageClass::with('teacher')->find($id);
 
         if(!$manageClass){
             return response()->json([
@@ -61,6 +81,11 @@ $manageClass->students_count = $request->students_count;
                 "message" => "Class not found"
             ]);
         }
+
+        $manageClass->students_count = Students::where('role', 'student')
+            ->where('class', $manageClass->class_name)
+            ->count();
+        $manageClass->teacher_name = $manageClass->teacher->username ?? $manageClass->name;
 
         return response()->json([
             "success" => true,
@@ -83,8 +108,9 @@ $manageClass->students_count = $request->students_count;
         }
 
         $manageClass->name = $request->name;
+        $manageClass->teacher_id = $request->teacher_id;
         $manageClass->class_name = $request->class_name;
-$manageClass->students_count = $request->students_count;
+        $manageClass->students_count = $request->students_count;
         $manageClass->status = $request->status;
 
         if($manageClass->save()){
