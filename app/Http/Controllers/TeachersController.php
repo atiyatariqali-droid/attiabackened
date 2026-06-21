@@ -31,6 +31,7 @@ class TeachersController extends Controller
             'password'           => 'required|min:6',
             'phone'              => 'nullable|string|max:20',
             'device_id' => 'nullable|string|max:255',
+            'status'    => 'nullable|in:0,1',   // NEW
         ]);
 
         // ✅ FIX 3: Use validated data only — prevents unexpected field injection
@@ -40,7 +41,8 @@ class TeachersController extends Controller
         $teacher->password           = bcrypt($validated['password']);
         $teacher->phone              = $validated['phone'] ?? null;
         $teacher->role               = 'teacher';   // always forced server-side
-        $teacher->status             = 1;           // active by default
+        $teacher->status             = $validated['status'] ?? 1;   // active by default, but respects incoming value
+        
         $teacher->device_id = $validated['device_id'] ?? null;
 
         if ($teacher->save()) {
@@ -104,6 +106,7 @@ class TeachersController extends Controller
             'password'  => 'nullable|min:6',
             'phone'     => 'nullable|string|max:20',
             'device_id' => 'nullable|string|max:255',
+            'status'    => 'nullable|in:0,1', 
         ]);
 
         // ✅ FIX 6: Build update array from validated data only
@@ -112,6 +115,7 @@ class TeachersController extends Controller
             'email'     => $validated['email'],
             'phone'     => $validated['phone'] ?? $teacher->phone,
             'device_id' => $validated['device_id'] ?? null,
+            'status'    => $validated['status'] ?? $teacher->status,
         ];
 
         // ✅ Only update password if provided
