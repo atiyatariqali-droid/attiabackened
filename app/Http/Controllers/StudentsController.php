@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Students;
+use App\Models\ManageClass;
 
 class StudentsController extends Controller
 {
@@ -15,6 +16,20 @@ class StudentsController extends Controller
             "success" => true,
             "data" => Students::where('role', 'student')->where('status', 1)->get()
         ]);
+    }
+
+    // ─────────────────────────────
+    // HELPER: Derive the teacher_id assigned to a given class name
+    // ─────────────────────────────
+    //  UPDATED: now reads ManageClass.teacher_id directly (the new,
+
+    private function deriveTeacherIdFromClass(?string $className)
+    {
+        if (!$className) {
+            return null;
+        }
+
+        return ManageClass::where('class_name', $className)->value('teacher_id');
     }
 
     // ─────────────────────────────
@@ -42,6 +57,10 @@ if (!$userRole) {
 }
         $status = ($userRole === 'admin') ? 1 : 0;
 
+     //  FIX: When an admin adds a student, teacher_id was previously
+        
+        $derivedTeacherId = $this->deriveTeacherIdFromClass($request->class);
+
         $student = new Students();
         $student->username = $request->username;
         $student->email = $request->email;
@@ -51,7 +70,7 @@ if (!$userRole) {
         $student->status = $status;
         $student->class = $request->class;
         $student->roll_no = $request->roll_no;
-        $student->teacher_id = ($userRole === 'teacher') ? $request->user()->id : null;
+        $student->teacher_id = ($userRole === 'teacher') ? $request->user()->id : $derivedTeacherId;
 
         if($student->save()){
             return response()->json([
@@ -114,6 +133,11 @@ if (!$userRole) {
             'class'    => $request->class,
             'roll_no'  => $request->roll_no,
         ];
+
+        if ($request->filled('class')) {
+            $derivedTeacherId = $this->deriveTeacherIdFromClass($request->class);
+            $data['teacher_id'] = $derivedTeacherId ?? $student->teacher_id;
+        }
     
         if($request->password){
             $data['password'] = bcrypt($request->password);
