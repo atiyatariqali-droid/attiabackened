@@ -32,12 +32,12 @@ if (!$teacher) {
         'message' => 'Teacher not found'
     ], 404);
 }
-// if ($teacher->device_id !== $request->device_id) {
-//     return response()->json([
-//         'success' => false,
-//         'message' => 'Unregistered device. Session not allowed.'
-//     ], 403);
-// }//me
+if ($teacher->device_id !== $request->device_id) {
+    return response()->json([
+        'success' => false,
+        'message' => 'Unregistered device. Session not allowed.'
+    ], 403);
+}//me
 
         $manageClass = ManageClass::where('name', $teacher->username)->first();
         if (!$manageClass) {
@@ -49,7 +49,7 @@ if (!$teacher) {
 
         $class_id = $manageClass->id;
 
-      //campus location
+    //   campus location
         if (!$campusLat || !$campusLng) {
             return response()->json([
                 'success' => false,
