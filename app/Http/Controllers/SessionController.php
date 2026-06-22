@@ -173,9 +173,8 @@ if (!$teacher) {
         ]);
     }
 
-    // ─────────────────────────────
+
     // GET A TEACHER'S SESSIONS
-    // ─────────────────────────────
     public function getTeacherSessions($teacher_id)
     {
         $sessions = Session::where('teacher_id', $teacher_id)
@@ -194,9 +193,7 @@ if (!$teacher) {
         ]);
     }
 
-    // ─────────────────────────────
     // END SESSION (Mark as inactive)
-    // ─────────────────────────────
     public function endSession($id)
     {
         $session = Session::find($id);
@@ -214,9 +211,8 @@ if (!$teacher) {
         ]);
     }
 
-    // ─────────────────────────────
     // UPDATE SESSION STATUS
-    // ─────────────────────────────
+    
     public function updateSessionStatus(Request $request, $id)
     {
         $request->validate(['status' => 'required|in:active,inactive']);
@@ -236,9 +232,8 @@ if (!$teacher) {
         ]);
     }
 
-    // ─────────────────────────────
     // DELETE SESSION
-    // ─────────────────────────────
+
     public function deleteSession($id)
     {
         $session = Session::find($id);
@@ -253,4 +248,116 @@ if (!$teacher) {
             'message' => 'Session deleted successfully'
         ]);
     }
+    public function sessionReport(Request $request)
+{
+    $query = Session::with('teacher')->orderBy('created_at', 'desc');
+
+    if ($request->filled('status')) {
+        $query->where('status', $request->status);
+    }
+
+    if ($request->filled('search')) {
+        $search = $request->search;
+        $query->where(function ($q) use ($search) {
+            $q->where('id', 'like', "%{$search}%")
+              ->orWhereHas('teacher', function ($tq) use ($search) {
+                  $tq->where('name', 'like', "%{$search}%");
+              });
+        });
+    }
+
+    $sessions = $query->get()->map(function ($session) {
+        return [
+            'session_id'       => $session->id,
+            'user_name'        => $session->teacher->username ?? 'Unknown',
+            'current_location' => round($session->latitude, 6) . ', ' . round($session->longitude, 6),
+            'status'           => $session->status,
+            'created_at'       => optional($session->created_at)->format('Y-m-d H:i:s'),
+        ];
+    });
+
+    return response()->json([
+        'success' => true,
+        'count'   => $sessions->count(),
+        'data'    => $sessions,
+    ]);
+}
+public function reportDashboard(Request $request)
+{
+    $today = Carbon::today();
+
+    // Stats
+    $totalSessions = Session::count();
+
+    $activeSessToday = Session::where('status', 'active')
+        ->whereDate('created_at', $today)
+        ->count();
+
+    $totalPresent = \App\Models\Attendance::where('status', 'present')->count();
+
+    // Flagged = sessions ended in under 2 minutes (suspicious short sessions)
+    $flagged = Session::whereNotNull('end_time')
+        ->whereRaw('TIMESTAMPDIFF(SECOND, start_time, end_time) < 120')
+        ->count();
+
+    // Weekly attendance % (last 7 days)
+    $weeklyData = [];
+    for ($i = 6; $i >= 0; $i--) {
+        $date = Carbon::today()->subDays($i);
+        $present = \App\Models\Attendance::where('status', 'present')
+            ->whereDate('attendance_date', $date)->count();
+        $total = \App\Models\Attendance::whereDate('attendance_date', $date)->count();
+        $weeklyData[] = [
+            'day'        => $date->format('D'),
+            'percentage' => $total > 0 ? round(($present / $total) * 100, 1) : 0,
+        ];
+    }
+
+    // Recent sessions (last 5)
+    $recentSessions = Session::with('teacher')
+        ->orderBy('created_at', 'desc')
+        ->limit(5)
+        ->get()
+        ->map(fn($s) => [
+            'type'       => 'session',
+            'id'         => $s->id,
+            'title'      => $s->teacher->username ?? 'Unknown Teacher',
+            'subtitle'   => 'Class ID: ' . $s->class_id,
+            'time'       => optional($s->created_at)->format('h:i A'),
+            'status'     => $s->status,
+            'created_at' => optional($s->created_at)->toISOString(),
+        ]);
+
+    // Recent attendance (last 5)
+    $recentAttendance = \App\Models\Attendance::with('student')
+        ->orderBy('created_at', 'desc')
+        ->limit(5)
+        ->get()
+        ->map(fn($a) => [
+            'type'       => 'attendance',
+            'id'         => $a->id,
+            'title'      => $a->student->username ?? 'Unknown Student',
+            'subtitle'   => 'Date: ' . $a->attendance_date,
+            'time'       => optional($a->created_at)->format('h:i A'),
+            'status'     => $a->status,
+            'created_at' => optional($a->created_at)->toISOString(),
+        ]);
+
+    // Merge and sort by created_at desc
+    $logs = $recentSessions->concat($recentAttendance)
+        ->sortByDesc('created_at')
+        ->values();
+
+    return response()->json([
+        'success' => true,
+        'stats'   => [
+            'total_sessions'   => $totalSessions,
+            'active_today'     => $activeSessToday,
+            'total_present'    => $totalPresent,
+            'flagged'          => $flagged,
+        ],
+        'weekly_data' => $weeklyData,
+        'recent_logs' => $logs,
+    ]);
+}
 }

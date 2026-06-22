@@ -23,4 +23,8 @@ class Session extends Model
         'start_time' => 'datetime',
         'end_time' => 'datetime'
     ];
+    public function teacher()
+{
+    return $this->belongsTo(Teachers::class, 'teacher_id');
+}
 }

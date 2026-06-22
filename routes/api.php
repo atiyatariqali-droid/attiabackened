@@ -119,11 +119,18 @@ Route::post('/mark-attendance', [AttendanceController::class, 'markAttendance'])
 
 // Create session
 Route::post('/create-session', [SessionController::class, 'createSession']);
+Route::get('/sessions/report', [SessionController::class, 'sessionReport']);
 Route::get('/sessions/{id}/students', [SessionController::class, 'getSessionStudents']);
-Route::get('/sessions/students', [SessionController::class, 'getSessionStudents']);
+Route::delete('/sessions/{id}', [SessionController::class, 'deleteSession']);
+Route::put('/sessions/{id}/status', [SessionController::class, 'updateSessionStatus']);
+//save session student
+Route::post('/session-students', [AttendanceController::class, 'saveSessionStudents']);
 
 // Manage Sessions
 Route::get('/teacher-sessions/{teacher_id}', [SessionController::class, 'getTeacherSessions']);
 Route::post('/end-session/{id}', [SessionController::class, 'endSession']);
 Route::put('/sessions/{id}/status', [SessionController::class, 'updateSessionStatus']);
 Route::delete('/sessions/{id}', [SessionController::class, 'deleteSession']);
+
+//report dashboard
+Route::get('/report/dashboard', [SessionController::class, 'reportDashboard']);
