@@ -120,6 +120,7 @@ Route::post('/mark-attendance', [AttendanceController::class, 'markAttendance'])
 // Create session
 Route::post('/create-session', [SessionController::class, 'createSession']);
 Route::get('/sessions/{id}/students', [SessionController::class, 'getSessionStudents']);
+Route::get('/sessions/students', [SessionController::class, 'getSessionStudents']);
 
 // Manage Sessions
 Route::get('/teacher-sessions/{teacher_id}', [SessionController::class, 'getTeacherSessions']);
