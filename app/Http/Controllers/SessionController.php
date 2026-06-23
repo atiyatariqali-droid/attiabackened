@@ -360,4 +360,50 @@ public function reportDashboard(Request $request)
         'recent_logs' => $logs,
     ]);
 }
+//attendance report 
+public function attendanceReport(Request $request)
+{
+    $query = \App\Models\Attendance::with(['student', 'session.teacher'])
+        ->orderBy('created_at', 'desc');
+
+    // Filter by session
+    if ($request->filled('session_id')) {
+        $query->where('session_id', $request->session_id);
+    }
+
+    // Filter by status (present/absent/late)
+    if ($request->filled('status')) {
+        $query->where('status', $request->status);
+    }
+
+    // Filter by date
+    if ($request->filled('date')) {
+        $query->whereDate('attendance_date', $request->date);
+    }
+
+    // Teacher sees only their own sessions' attendance
+    if ($request->filled('teacher_id')) {
+        $query->whereHas('session', function ($q) use ($request) {
+            $q->where('teacher_id', $request->teacher_id);
+        });
+    }
+
+    $records = $query->get()->map(fn($a) => [
+        'id'              => $a->id,
+        'student_name'    => $a->student->username ?? 'Unknown',
+        'roll_no'         => $a->student->roll_no ?? '-',
+        'class'           => $a->student->class ?? '-',
+        'status'          => $a->status,
+        'attendance_date' => $a->attendance_date,
+        'session_id'      => $a->session_id,
+        'teacher_name'    => $a->session?->teacher?->username ?? '-',
+        'marked_at'       => optional($a->created_at)->format('Y-m-d h:i A'),
+    ]);
+
+    return response()->json([
+        'success' => true,
+        'count'   => $records->count(),
+        'data'    => $records,
+    ]);
+}
 }

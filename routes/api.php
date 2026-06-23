@@ -134,3 +134,5 @@ Route::delete('/sessions/{id}', [SessionController::class, 'deleteSession']);
 
 //report dashboard
 Route::get('/report/dashboard', [SessionController::class, 'reportDashboard']);
+//attendance report
+Route::get('/attendance/report', [SessionController::class, 'attendanceReport']);

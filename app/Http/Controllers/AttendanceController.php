@@ -198,4 +198,50 @@ public function getActiveSession($teacherId)
     ]);
 }
 
+    // ─────────────────────────────────────────────
+    // ATTENDANCE REPORT (admin sees all, teacher filtered)
+    // ─────────────────────────────────────────────
+    public function attendanceReport(Request $request)
+    {
+        $query = Attendance::with(['student', 'session.teacher'])
+            ->orderBy('created_at', 'desc');
+
+        if ($request->filled('session_id')) {
+            $query->where('session_id', $request->session_id);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('date')) {
+            $query->whereDate('attendance_date', $request->date);
+        }
+
+        if ($request->filled('teacher_id')) {
+            $query->whereHas('session', function ($q) use ($request) {
+                $q->where('teacher_id', $request->teacher_id);
+            });
+        }
+
+        $records = $query->get()->map(fn($a) => [
+            'id'              => $a->id,
+            'student_name'    => $a->student->username ?? 'Unknown',
+            'roll_no'         => $a->student->roll_no ?? '-',
+            'class'           => $a->student->class ?? '-',
+            'status'          => $a->status,
+            'attendance_date' => $a->attendance_date,
+            'session_id'      => $a->session_id ?? '-',
+            'teacher_name'    => $a->session?->teacher?->username ?? '-',
+            'marked_at'       => optional($a->created_at)->format('Y-m-d h:i A'),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'count'   => $records->count(),
+            'data'    => $records,
+        ]);
+    }
+
+
 }

@@ -21,4 +21,8 @@ class Attendance extends Model
 {
     return $this->belongsTo(Students::class, 'student_id');
 }
+public function session()
+{
+    return $this->belongsTo(\App\Models\Session::class, 'session_id');
+}
 }
