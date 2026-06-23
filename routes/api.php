@@ -11,6 +11,7 @@ use App\Http\Controllers\SystemSettingController;
 use App\Http\Controllers\StudentsController;
 use App\Http\Controllers\PendingStudentController;
 use App\Http\Controllers\SessionController;
+use App\Http\Controllers\AdminProfileController;
 
 /*
 |--------------------------------------------------------------------------
@@ -120,3 +121,17 @@ Route::post('/mark-attendance', [AttendanceController::class, 'markAttendance'])
 // Create session
 Route::post('/create-session', [SessionController::class, 'createSession']);
 Route::get('/sessions/{id}/students', [SessionController::class, 'getSessionStudents']);
+
+/*
+|--------------------------------------------------------------------------
+| ADMIN PROFILE ROUTES
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get ('admin/profile',                 [AdminProfileController::class, 'show']);
+    Route::put ('admin/profile',                 [AdminProfileController::class, 'update']);
+    Route::post('admin/profile/change-password', [AdminProfileController::class, 'changePassword']);
+    Route::post('admin/profile/change-email',    [AdminProfileController::class, 'changeEmail']);
+    Route::post('admin/logout',                  [AdminProfileController::class, 'logout']);
+    Route::post('admin/logout-all',              [AdminProfileController::class, 'logoutAll']);
+});
