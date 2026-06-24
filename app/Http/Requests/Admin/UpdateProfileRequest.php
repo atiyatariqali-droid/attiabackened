@@ -9,7 +9,7 @@ class UpdateProfileRequest extends FormRequest
     public function authorize(): bool
     {
         // Only the authenticated admin can update their own profile
-        return $this->user() && $this->user()->role === 'admin';
+        return $this->user() !== null;
     }
 
     public function rules(): array

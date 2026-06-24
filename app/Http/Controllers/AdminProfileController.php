@@ -31,7 +31,7 @@ class AdminProfileController extends Controller
             'success' => true,
             'data' => [
                 'id'         => $admin->id,
-                'name'       => $admin->name,
+                'name'       => $admin->username,
                 'email'      => $admin->email,
                 'phone'      => $admin->phone ?? '',
                 'role'       => $admin->role,
@@ -56,7 +56,7 @@ class AdminProfileController extends Controller
         }
 
         $admin->update([
-            'name'  => $request->name,
+            'username'  => $request->name,
             'phone' => $request->phone ?? null,
         ]);
 
@@ -64,7 +64,7 @@ class AdminProfileController extends Controller
             'success' => true,
             'message' => 'Profile updated successfully',
             'data'    => [
-                'name'  => $admin->fresh()->name,
+                'name'  => $admin->fresh()->username,
                 'phone' => $admin->fresh()->phone ?? '',
             ],
         ]);
@@ -160,6 +160,33 @@ class AdminProfileController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Logged out from all devices successfully',
+        ]);
+    }
+    /**
+     * POST /api/student/profile/change-password
+     * Verifies current password before setting a new one (Student).
+     */
+    public function studentChangePassword(ChangePasswordRequest $request): JsonResponse
+    {
+        $student = $request->user();
+
+        if ($student->role !== 'student') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if (!Hash::check($request->current_password, $student->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Current password is incorrect',
+                'errors'  => ['current_password' => ['Current password is incorrect']],
+            ], 422);
+        }
+
+        $student->update(['password' => Hash::make($request->new_password)]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password changed successfully',
         ]);
     }
 }

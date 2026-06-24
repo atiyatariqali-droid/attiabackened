@@ -135,3 +135,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('admin/logout',                  [AdminProfileController::class, 'logout']);
     Route::post('admin/logout-all',              [AdminProfileController::class, 'logoutAll']);
 });
+
+// Student Profile
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('student/profile/change-password', [AdminProfileController::class, 'studentChangePassword']);
+    Route::post('student/logout',                  [AdminProfileController::class, 'logout']);
+});
