@@ -32,12 +32,6 @@ if (!$teacher) {
         'message' => 'Teacher not found'
     ], 404);
 }
-// if ($teacher->device_id !== $request->device_id) {
-//     return response()->json([
-//         'success' => false,
-//         'message' => 'Unregistered device. Session not allowed.'
-//     ], 403);
-// }//me
 
         $manageClass = ManageClass::where('name', $teacher->username)->first();
         if (!$manageClass) {
@@ -404,6 +398,55 @@ public function attendanceReport(Request $request)
         'success' => true,
         'count'   => $records->count(),
         'data'    => $records,
+    ]);
+}
+//index method
+public function index()
+{
+    $sessions = Session::with(['teacher'])
+        ->latest('created_at')
+        ->get()
+        ->map(function ($session) {
+            return [
+                'id'           => $session->id,
+                'teacher_name' => $session->teacher->username ?? 'Unknown',
+                'class_id'     => $session->class_id,
+                'status'       => $session->status,
+                'latitude'     => $session->latitude,
+                'longitude'    => $session->longitude,
+                'start_time'   => optional($session->start_time)->format('h:i A'),
+                'end_time'     => optional($session->end_time)->format('h:i A'),
+                'date'         => optional($session->created_at)->format('d M Y'),
+                'created_at'   => $session->created_at,
+            ];
+        });
+
+    return response()->json([
+        'success' => true,
+        'count'   => $sessions->count(),
+        'data'    => $sessions,
+    ]);
+}
+//TOGGLA method
+public function toggleStatus(Request $request, $id)
+{
+    $session = Session::find($id);
+
+    if (!$session) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Session not found'
+        ], 404);
+    }
+
+    // active <-> completed toggle
+    $session->status = $session->status === 'active' ? 'completed' : 'active';
+    $session->save();
+
+    return response()->json([
+        'success' => true,
+        'id'      => $session->id,
+        'status'  => $session->status,
     ]);
 }
 }

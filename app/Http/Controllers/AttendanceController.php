@@ -80,6 +80,7 @@ class AttendanceController extends Controller
             'class_id'        => $classId,
             'attendance_date' => $attendanceDate,
             'status'          => $request->status,
+            'session_id'      => $session->id,
         ]);
 
         return response()->json([
@@ -142,6 +143,18 @@ class AttendanceController extends Controller
                 ]
             );
         }
+         // ── AUTO: Close any existing pending request, create a new one ──
+    \DB::table('confirmation_requests')
+        ->where('session_id', $request->session_id)
+        ->where('status', 'pending')
+        ->update(['status' => 'closed']);
+    \DB::table('confirmation_requests')->insert([
+        'session_id' => $request->session_id,
+        'status'     => 'pending',
+        'expires_at' => Carbon::now()->addMinutes(2),
+        'created_at' => Carbon::now(),
+        'updated_at' => Carbon::now(),
+    ]);
 
         return response()->json([
             'success' => true,
@@ -149,6 +162,7 @@ class AttendanceController extends Controller
             'data'    => $records
         ], 201);
     }
+
     public function sessionReport(Request $request)
 {
     $query = Session::with('teacher')->orderBy('created_at', 'desc');
@@ -198,9 +212,8 @@ public function getActiveSession($teacherId)
     ]);
 }
 
-    // ─────────────────────────────────────────────
     // ATTENDANCE REPORT (admin sees all, teacher filtered)
-    // ─────────────────────────────────────────────
+    
     public function attendanceReport(Request $request)
     {
         $query = Attendance::with(['student', 'session.teacher'])

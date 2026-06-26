@@ -13,13 +13,24 @@ return new class extends Migration
     {
         Schema::create('confirmation_responses', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('request_id');
+            $table->unsignedBigInteger('student_id');
+            $table->enum('response', ['yes', 'no']);
             $table->timestamps();
+           
+            $table->unique(['request_id', 'student_id']); // one response per student
+        $table->foreign('request_id')
+              ->references('id')
+              ->on('confirmation_requests')
+              ->onDelete('cascade');
+        $table->foreign('student_id')
+              ->references('id')
+              ->on('users')
+              ->onDelete('cascade');
+
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('confirmation_responses');

@@ -11,6 +11,7 @@ use App\Http\Controllers\SystemSettingController;
 use App\Http\Controllers\StudentsController;
 use App\Http\Controllers\PendingStudentController;
 use App\Http\Controllers\SessionController;
+use App\Http\Controllers\ConfirmationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -136,3 +137,19 @@ Route::delete('/sessions/{id}', [SessionController::class, 'deleteSession']);
 Route::get('/report/dashboard', [SessionController::class, 'reportDashboard']);
 //attendance report
 Route::get('/attendance/report', [SessionController::class, 'attendanceReport']);
+
+
+
+// Teacher confirmation
+Route::post('/confirmation/request',  [ConfirmationController::class, 'requestConfirmation']);
+Route::get('/confirmation/results',   [ConfirmationController::class, 'getResults']);
+
+// Student confirmation
+Route::get('/confirmation/pending',   [ConfirmationController::class, 'getPendingConfirmation']);
+Route::post('/confirmation/respond',  [ConfirmationController::class, 'submitResponse']);
+// Confirmation response directory
+Route::get('/confirmation/directory', [ConfirmationController::class, 'getResponseDirectory']);
+//index route
+Route::get('/sessions', [SessionController::class, 'index']);
+//toggle method
+Route::post('/sessions/{id}/toggle-status', [SessionController::class, 'toggleStatus']);
