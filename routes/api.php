@@ -12,7 +12,7 @@ use App\Http\Controllers\StudentsController;
 use App\Http\Controllers\PendingStudentController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\AdminProfileController;
-
+use App\Http\Controllers\TeacherProfileController; 
 /*
 |--------------------------------------------------------------------------
 | AUTH USER
@@ -120,7 +120,45 @@ Route::post('/mark-attendance', [AttendanceController::class, 'markAttendance'])
 
 // Create session
 Route::post('/create-session', [SessionController::class, 'createSession']);
+Route::get('/sessions/report', [SessionController::class, 'sessionReport']);
 Route::get('/sessions/{id}/students', [SessionController::class, 'getSessionStudents']);
+Route::delete('/sessions/{id}', [SessionController::class, 'deleteSession']);
+Route::put('/sessions/{id}/status', [SessionController::class, 'updateSessionStatus']);
+
+
+//save session student
+Route::post('/session-students', [AttendanceController::class, 'saveSessionStudents']);
+
+// Manage Sessions
+Route::get('/teacher-sessions/{teacher_id}', [SessionController::class, 'getTeacherSessions']);
+Route::post('/end-session/{id}', [SessionController::class, 'endSession']);
+Route::put('/sessions/{id}/status', [SessionController::class, 'updateSessionStatus']);
+Route::delete('/sessions/{id}', [SessionController::class, 'deleteSession']);
+
+//report dashboard
+Route::get('/report/dashboard', [SessionController::class, 'reportDashboard']);
+
+
+//attendance report
+Route::get('/attendance/report', [SessionController::class, 'attendanceReport']);
+
+
+// Teacher confirmation
+Route::post('/confirmation/request',  [ConfirmationController::class, 'requestConfirmation']);
+Route::get('/confirmation/results',   [ConfirmationController::class, 'getResults']);
+
+// Student confirmation
+Route::get('/confirmation/pending',   [ConfirmationController::class, 'getPendingConfirmation']);
+Route::post('/confirmation/respond',  [ConfirmationController::class, 'submitResponse']);
+
+// Confirmation response directory
+Route::get('/confirmation/directory', [ConfirmationController::class, 'getResponseDirectory']);
+
+//index route
+Route::get('/sessions', [SessionController::class, 'index']);
+
+//toggle method
+Route::post('/sessions/{id}/toggle-status', [SessionController::class, 'toggleStatus']);
 
 /*
 |--------------------------------------------------------------------------
@@ -140,4 +178,18 @@ Route::middleware(['auth:sanctum'])->group(function () {
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('student/profile/change-password', [AdminProfileController::class, 'studentChangePassword']);
     Route::post('student/logout',                  [AdminProfileController::class, 'logout']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| TEACHER PROFILE ROUTES  
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get ('teacher/profile',                 [TeacherProfileController::class, 'show']);
+    Route::put ('teacher/profile',                 [TeacherProfileController::class, 'update']);
+    Route::post('teacher/profile/change-password', [TeacherProfileController::class, 'changePassword']);
+    Route::post('teacher/profile/change-email',    [TeacherProfileController::class, 'changeEmail']);
+    Route::post('teacher/logout',                  [TeacherProfileController::class, 'logout']);
+    Route::post('teacher/logout-all',              [TeacherProfileController::class, 'logoutAll']);
 });

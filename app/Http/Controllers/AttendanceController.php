@@ -80,6 +80,7 @@ class AttendanceController extends Controller
             'class_id'        => $classId,
             'attendance_date' => $attendanceDate,
             'status'          => $request->status,
+            'session_id'      => $session->id,
         ]);
 
         return response()->json([
@@ -105,4 +106,155 @@ class AttendanceController extends Controller
 
         return $earthRadius * $c;
     }
+ 
+
+    // SAVE SESSION STUDENTS (bulk mark present)
+    public function saveSessionStudents(Request $request)
+    {
+        $request->validate([
+            'session_id'    => 'required|integer|exists:attendance_sessions,id',
+            'student_ids'   => 'required|array|min:1',
+            'student_ids.*' => 'integer',
+        ]);
+
+        $session = Session::find($request->session_id);
+
+        if (!$session) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Session not found'
+            ], 404);
+        }
+
+        $attendanceDate = Carbon::parse($session->start_time)->toDateString();
+        $classId = $session->class_id;
+
+        $records = [];
+        foreach ($request->student_ids as $studentId) {
+            $records[] = Attendance::updateOrCreate(
+                [
+                    'student_id'      => $studentId,
+                    'class_id'        => $classId,
+                    'attendance_date' => $attendanceDate,
+                ],
+                [
+                    'session_id' => $session->id,
+                    'status'     => 'present',
+                ]
+            );
+        }
+         // ── AUTO: Close any existing pending request, create a new one ──
+    \DB::table('confirmation_requests')
+        ->where('session_id', $request->session_id)
+        ->where('status', 'pending')
+        ->update(['status' => 'closed']);
+    \DB::table('confirmation_requests')->insert([
+        'session_id' => $request->session_id,
+        'status'     => 'pending',
+        'expires_at' => Carbon::now()->addMinutes(2),
+        'created_at' => Carbon::now(),
+        'updated_at' => Carbon::now(),
+    ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Students marked present successfully',
+            'data'    => $records
+        ], 201);
+    }
+
+    public function sessionReport(Request $request)
+{
+    $query = Session::with('teacher')->orderBy('created_at', 'desc');
+
+    if ($request->filled('status')) {
+        $query->where('status', $request->status);
+    }
+
+    if ($request->filled('search')) {
+        $search = $request->search;
+        $query->where(function ($q) use ($search) {
+            $q->where('id', 'like', "%{$search}%")
+              ->orWhereHas('teacher', function ($tq) use ($search) {
+                  $tq->where('name', 'like', "%{$search}%");
+              });
+        });
+    }
+
+    $sessions = $query->get()->map(function ($session) {
+        return [
+            'session_id'       => $session->id,
+            'user_name'        => $session->teacher->username ?? 'Unknown',
+            'current_location' => round($session->latitude, 6) . ', ' . round($session->longitude, 6),
+            'status'           => $session->status,
+            'created_at'       => optional($session->created_at)->format('Y-m-d H:i:s'),
+        ];
+    });
+
+    return response()->json([
+        'success' => true,
+        'count'   => $sessions->count(),
+        'data'    => $sessions,
+    ]);
+}
+
+public function getActiveSession($teacherId)
+{
+    $session = Session::where('teacher_id', $teacherId)
+                      ->where('status', 'active')
+                      ->latest('created_at')
+                      ->first();
+
+    return response()->json([
+        'success' => true,
+        'active'  => $session !== null,
+        'data'    => $session
+    ]);
+}
+
+    // ATTENDANCE REPORT (admin sees all, teacher filtered)
+    
+    public function attendanceReport(Request $request)
+    {
+        $query = Attendance::with(['student', 'session.teacher'])
+            ->orderBy('created_at', 'desc');
+
+        if ($request->filled('session_id')) {
+            $query->where('session_id', $request->session_id);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('date')) {
+            $query->whereDate('attendance_date', $request->date);
+        }
+
+        if ($request->filled('teacher_id')) {
+            $query->whereHas('session', function ($q) use ($request) {
+                $q->where('teacher_id', $request->teacher_id);
+            });
+        }
+
+        $records = $query->get()->map(fn($a) => [
+            'id'              => $a->id,
+            'student_name'    => $a->student->username ?? 'Unknown',
+            'roll_no'         => $a->student->roll_no ?? '-',
+            'class'           => $a->student->class ?? '-',
+            'status'          => $a->status,
+            'attendance_date' => $a->attendance_date,
+            'session_id'      => $a->session_id ?? '-',
+            'teacher_name'    => $a->session?->teacher?->username ?? '-',
+            'marked_at'       => optional($a->created_at)->format('Y-m-d h:i A'),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'count'   => $records->count(),
+            'data'    => $records,
+        ]);
+    }
+
+
 }
