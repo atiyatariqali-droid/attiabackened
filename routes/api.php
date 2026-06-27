@@ -14,10 +14,7 @@ use App\Http\Controllers\SessionController;
 use App\Http\Controllers\ConfirmationController;
 
 /*
-|--------------------------------------------------------------------------
-| AUTH USER
-|--------------------------------------------------------------------------
-*/
+AUTH USER
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
