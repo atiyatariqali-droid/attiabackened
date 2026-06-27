@@ -440,7 +440,7 @@ public function toggleStatus(Request $request, $id)
     }
 
     // active <-> completed toggle
-    $session->status = $session->status === 'active' ? 'completed' : 'active';
+    $session->status = $session->status === 'active' ? 'inactive' : 'active';
     $session->save();
 
     return response()->json([
