@@ -204,6 +204,27 @@ class AttendanceController extends Controller
             : 'Less than 10 students — no notifications sent',
     ], 201);
 }
+//get notification
+public function getNotifications($studentId)
+{
+    $notifications = \DB::table('notifications')
+        ->where('student_id', $studentId)
+        ->orderBy('created_at', 'desc')
+        ->limit(20)
+        ->get();
+
+    // Mark all as read
+    \DB::table('notifications')
+        ->where('student_id', $studentId)
+        ->where('is_read', false)
+        ->update(['is_read' => true]);
+
+    return response()->json([
+        'success' => true,
+        'count'   => $notifications->count(),
+        'data'    => $notifications,
+    ]);
+}
 //session report
 
     public function sessionReport(Request $request)
