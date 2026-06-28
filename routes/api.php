@@ -150,3 +150,5 @@ Route::get('/confirmation/directory', [ConfirmationController::class, 'getRespon
 Route::get('/sessions', [SessionController::class, 'index']);
 //toggle method
 Route::post('/sessions/{id}/toggle-status', [SessionController::class, 'toggleStatus']);
+//student notification fetch
+Route::get('/notifications/{student_id}', [AttendanceController::class, 'getNotifications']);

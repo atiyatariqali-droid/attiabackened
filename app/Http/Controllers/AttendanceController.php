@@ -110,44 +110,51 @@ class AttendanceController extends Controller
 
     // SAVE SESSION STUDENTS (bulk mark present)
     public function saveSessionStudents(Request $request)
-    {
-        $request->validate([
-            'session_id'    => 'required|integer|exists:attendance_sessions,id',
-            'student_ids'   => 'required|array|min:1',
-            'student_ids.*' => 'integer',
-        ]);
+{
+    $request->validate([
+        'session_id'    => 'required|integer|exists:attendance_sessions,id',
+        'student_ids'   => 'required|array|min:1',
+        'student_ids.*' => 'integer',
+    ]);
 
-        $session = Session::find($request->session_id);
+    $session = Session::find($request->session_id);
 
-        if (!$session) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Session not found'
-            ], 404);
-        }
+    if (!$session) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Session not found'
+        ], 404);
+    }
 
-        $attendanceDate = Carbon::parse($session->start_time)->toDateString();
-        $classId = $session->class_id;
+    $attendanceDate = Carbon::parse($session->start_time)->toDateString();
+    $classId        = $session->class_id;
 
-        $records = [];
-        foreach ($request->student_ids as $studentId) {
-            $records[] = Attendance::updateOrCreate(
-                [
-                    'student_id'      => $studentId,
-                    'class_id'        => $classId,
-                    'attendance_date' => $attendanceDate,
-                ],
-                [
-                    'session_id' => $session->id,
-                    'status'     => 'present',
-                ]
-            );
-        }
-         // ── AUTO: Close any existing pending request, create a new one ──
+    // ── Step 1: Mark attendance ───────────────────
+    $successfulStudentIds = [];
+
+    foreach ($request->student_ids as $studentId) {
+        $record = Attendance::updateOrCreate(
+            [
+                'student_id'      => $studentId,
+                'class_id'        => $classId,
+                'attendance_date' => $attendanceDate,
+            ],
+            [
+                'session_id' => $session->id,
+                'status'     => 'present',
+            ]
+        );
+
+        // Track successfully marked students
+        $successfulStudentIds[] = $studentId;
+    }
+
+    // ── Step 2: Auto confirmation request ────────
     \DB::table('confirmation_requests')
         ->where('session_id', $request->session_id)
         ->where('status', 'pending')
         ->update(['status' => 'closed']);
+
     \DB::table('confirmation_requests')->insert([
         'session_id' => $request->session_id,
         'status'     => 'pending',
@@ -156,12 +163,48 @@ class AttendanceController extends Controller
         'updated_at' => Carbon::now(),
     ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Students marked present successfully',
-            'data'    => $records
-        ], 201);
+    // ── Step 3: Random notification logic ────────
+    $totalMarked = count($successfulStudentIds);
+    $notifiedStudents = [];
+
+    if ($totalMarked >= 10) {
+        // Randomly pick exactly 3 unique students
+        $randomKeys = array_rand($successfulStudentIds, 3);
+
+        // array_rand returns single value if count=1, array otherwise
+        if (!is_array($randomKeys)) {
+            $randomKeys = [$randomKeys];
+        }
+
+        foreach ($randomKeys as $key) {
+            $studentId = $successfulStudentIds[$key];
+            $notifiedStudents[] = $studentId;
+
+            // Save notification in DB
+            \DB::table('notifications')->insert([
+                'student_id'  => $studentId,
+                'session_id'  => $session->id,
+                'message'     => 'Your attendance has been marked for today\'s class.',
+                'type'        => 'attendance_marked',
+                'is_read'     => false,
+                'created_at'  => Carbon::now(),
+                'updated_at'  => Carbon::now(),
+            ]);
+        }
     }
+
+    return response()->json([
+        'success'             => true,
+        'message'             => 'Attendance marked successfully',
+        'total_marked'        => $totalMarked,
+        'notifications_sent'  => count($notifiedStudents),
+        'notified_student_ids'=> $notifiedStudents,
+        'notification_note'   => $totalMarked >= 10
+            ? '3 random students notified'
+            : 'Less than 10 students — no notifications sent',
+    ], 201);
+}
+//session report
 
     public function sessionReport(Request $request)
 {

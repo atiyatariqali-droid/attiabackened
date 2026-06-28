@@ -220,9 +220,8 @@ class ConfirmationController extends Controller
             'verdict'        => $verdict,
         ]);
     }
-    // ─────────────────────────────────────────────
+    
 // TEACHER: Get response directory (name, status, response, time)
-// ─────────────────────────────────────────────
 public function getResponseDirectory(Request $request)
 {
     $request->validate([
