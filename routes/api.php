@@ -11,10 +11,14 @@ use App\Http\Controllers\SystemSettingController;
 use App\Http\Controllers\StudentsController;
 use App\Http\Controllers\PendingStudentController;
 use App\Http\Controllers\SessionController;
-use App\Http\Controllers\ConfirmationController;
-
+use App\Http\Controllers\AdminProfileController;
+use App\Http\Controllers\TeacherProfileController; 
+use App\Http\Controllers\ConfirmationController; 
 /*
-AUTH USER
+|--------------------------------------------------------------------------
+| AUTH USER
+|--------------------------------------------------------------------------
+*/
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
@@ -121,6 +125,8 @@ Route::get('/sessions/report', [SessionController::class, 'sessionReport']);
 Route::get('/sessions/{id}/students', [SessionController::class, 'getSessionStudents']);
 Route::delete('/sessions/{id}', [SessionController::class, 'deleteSession']);
 Route::put('/sessions/{id}/status', [SessionController::class, 'updateSessionStatus']);
+
+
 //save session student
 Route::post('/session-students', [AttendanceController::class, 'saveSessionStudents']);
 
@@ -132,9 +138,10 @@ Route::delete('/sessions/{id}', [SessionController::class, 'deleteSession']);
 
 //report dashboard
 Route::get('/report/dashboard', [SessionController::class, 'reportDashboard']);
+
+
 //attendance report
 Route::get('/attendance/report', [SessionController::class, 'attendanceReport']);
-
 
 
 // Teacher confirmation
@@ -144,11 +151,49 @@ Route::get('/confirmation/results',   [ConfirmationController::class, 'getResult
 // Student confirmation
 Route::get('/confirmation/pending',   [ConfirmationController::class, 'getPendingConfirmation']);
 Route::post('/confirmation/respond',  [ConfirmationController::class, 'submitResponse']);
+
 // Confirmation response directory
 Route::get('/confirmation/directory', [ConfirmationController::class, 'getResponseDirectory']);
+
 //index route
 Route::get('/sessions', [SessionController::class, 'index']);
+
 //toggle method
 Route::post('/sessions/{id}/toggle-status', [SessionController::class, 'toggleStatus']);
+
+/*
+|--------------------------------------------------------------------------
+| ADMIN PROFILE ROUTES
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get ('admin/profile',                 [AdminProfileController::class, 'show']);
+    Route::put ('admin/profile',                 [AdminProfileController::class, 'update']);
+    Route::post('admin/profile/change-password', [AdminProfileController::class, 'changePassword']);
+    Route::post('admin/profile/change-email',    [AdminProfileController::class, 'changeEmail']);
+    Route::post('admin/logout',                  [AdminProfileController::class, 'logout']);
+    Route::post('admin/logout-all',              [AdminProfileController::class, 'logoutAll']);
+});
+
+// Student Profile
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('student/profile/change-password', [AdminProfileController::class, 'studentChangePassword']);
+    Route::post('student/logout',                  [AdminProfileController::class, 'logout']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| TEACHER PROFILE ROUTES  
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get ('teacher/profile',                 [TeacherProfileController::class, 'show']);
+    Route::put ('teacher/profile',                 [TeacherProfileController::class, 'update']);
+    Route::post('teacher/profile/change-password', [TeacherProfileController::class, 'changePassword']);
+    Route::post('teacher/profile/change-email',    [TeacherProfileController::class, 'changeEmail']);
+    Route::post('teacher/logout',                  [TeacherProfileController::class, 'logout']);
+    Route::post('teacher/logout-all',              [TeacherProfileController::class, 'logoutAll']);
+});
+
 //student notification fetch
 Route::get('/notifications/{student_id}', [AttendanceController::class, 'getNotifications']);

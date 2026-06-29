@@ -108,7 +108,7 @@ class AttendanceController extends Controller
     }
  
 
-    // SAVE SESSION STUDENTS (bulk mark present)
+    // SAVE SESSION STUDENTS ( mark present)
     public function saveSessionStudents(Request $request)
 {
     $request->validate([
@@ -133,7 +133,7 @@ class AttendanceController extends Controller
     $successfulStudentIds = [];
 
     foreach ($request->student_ids as $studentId) {
-        $record = Attendance::updateOrCreate(
+         Attendance::updateOrCreate(
             [
                 'student_id'      => $studentId,
                 'class_id'        => $classId,
@@ -146,7 +146,7 @@ class AttendanceController extends Controller
         );
 
         // Track successfully marked students
-        $successfulStudentIds[] = $studentId;
+        $successfulStudentIds[] = (int) $studentId;
     }
 
     // ── Step 2: Auto confirmation request ────────
@@ -163,46 +163,73 @@ class AttendanceController extends Controller
         'updated_at' => Carbon::now(),
     ]);
 
-    // ── Step 3: Random notification logic ────────
+    // Step 3: Random notification logic 3 students only
     $totalMarked = count($successfulStudentIds);
     $notifiedStudents = [];
 
     if ($totalMarked >= 10) {
-        // Randomly pick exactly 3 unique students
-        $randomKeys = array_rand($successfulStudentIds, 3);
+        $shuffled = $successfulStudentIds;
+        shuffle($shuffled);
 
-        // array_rand returns single value if count=1, array otherwise
-        if (!is_array($randomKeys)) {
-            $randomKeys = [$randomKeys];
-        }
+        // Pick first 3 after shuffle — guaranteed unique
+        $selected = array_slice($shuffled, 0, 3);
 
-        foreach ($randomKeys as $key) {
-            $studentId = $successfulStudentIds[$key];
-            $notifiedStudents[] = $studentId;
-
-            // Save notification in DB
-            \DB::table('notifications')->insert([
-                'student_id'  => $studentId,
-                'session_id'  => $session->id,
-                'message'     => 'Your attendance has been marked for today\'s class.',
-                'type'        => 'attendance_marked',
-                'is_read'     => false,
-                'created_at'  => Carbon::now(),
-                'updated_at'  => Carbon::now(),
-            ]);
+        foreach ($selected as $studentId) {
+            // Check no duplicate notification for same session
+            $alreadyNotified = \DB::table('notifications')
+                ->where('student_id', $studentId)
+                ->where('session_id', $session->id)
+                ->where('type', 'attendance_marked')
+                ->exists();
+                 if (!$alreadyNotified) {
+                \DB::table('notifications')->insert([
+                    'student_id'  => $studentId,
+                    'session_id'  => $session->id,
+                    'message'     => 'Your attendance has been randomly selected for verification. Please confirm.',
+                    'type'        => 'attendance_marked',
+                    'is_read'     => false,
+                    'created_at'  => Carbon::now(),
+                    'updated_at'  => Carbon::now(),
+                ]);
+                $notifiedStudents[] = $studentId;
+            }
         }
     }
-
-    return response()->json([
-        'success'             => true,
-        'message'             => 'Attendance marked successfully',
-        'total_marked'        => $totalMarked,
-        'notifications_sent'  => count($notifiedStudents),
-        'notified_student_ids'=> $notifiedStudents,
-        'notification_note'   => $totalMarked >= 10
-            ? '3 random students notified'
-            : 'Less than 10 students — no notifications sent',
+     return response()->json([
+        'success'              => true,
+        'message'              => 'Attendance marked successfully',
+        'total_marked'         => $totalMarked,
+        'notifications_sent'   => count($notifiedStudents),
+        'notified_student_ids' => $notifiedStudents,
+        'notification_note'    => $totalMarked >= 10
+            ? '3 random students notified out of ' . $totalMarked
+            : 'Only ' . $totalMarked . ' students marked — minimum 10 required for notifications',
     ], 201);
+
+        // // Randomly pick exactly 3 unique students
+        // $randomKeys = array_rand($successfulStudentIds, 3);
+
+        // // array_rand returns single value if count=1, array otherwise
+        // if (!is_array($randomKeys)) {
+        //     $randomKeys = [$randomKeys];
+        // }
+
+        // foreach ($randomKeys as $key) {
+        //     $studentId = $successfulStudentIds[$key];
+        //     $notifiedStudents[] = $studentId;
+
+            // Save notification in DB
+        //     \DB::table('notifications')->insert([
+        //         'student_id'  => $studentId,
+        //         'session_id'  => $session->id,
+        //         'message'     => 'Your attendance has been marked for today\'s class.',
+        //         'type'        => 'attendance_marked',
+        //         'is_read'     => false,
+        //         'created_at'  => Carbon::now(),
+        //         'updated_at'  => Carbon::now(),
+        //     ]);
+        // }
+    
 }
 //get notification
 public function getNotifications($studentId)
@@ -212,6 +239,11 @@ public function getNotifications($studentId)
         ->orderBy('created_at', 'desc')
         ->limit(20)
         ->get();
+        // Step 2: Unread count check karo BEFORE marking read
+    $unreadCount = \DB::table('notifications')
+        ->where('student_id', $studentId)
+        ->where('is_read', false)
+        ->count();
 
     // Mark all as read
     \DB::table('notifications')
@@ -222,6 +254,7 @@ public function getNotifications($studentId)
     return response()->json([
         'success' => true,
         'count'   => $notifications->count(),
+        'unread_count' => $unreadCount, 
         'data'    => $notifications,
     ]);
 }
