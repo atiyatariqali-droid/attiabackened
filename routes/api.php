@@ -13,6 +13,8 @@ use App\Http\Controllers\PendingStudentController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\AdminProfileController;
 use App\Http\Controllers\TeacherProfileController; 
+use App\Http\Controllers\ConfirmationController; 
+use App\Http\Controllers\AdminReportController;
 /*
 |--------------------------------------------------------------------------
 | AUTH USER
@@ -192,4 +194,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('teacher/profile/change-email',    [TeacherProfileController::class, 'changeEmail']);
     Route::post('teacher/logout',                  [TeacherProfileController::class, 'logout']);
     Route::post('teacher/logout-all',              [TeacherProfileController::class, 'logoutAll']);
+});
+
+// ─── REPORTS ROUTES ──────────────────────────────────────────────────────────
+
+Route::prefix('admin/reports')->group(function () {
+    Route::get('stats',    [AdminReportController::class, 'getStats']);
+    Route::get('chart',    [AdminReportController::class, 'getChartData']);
+    Route::get('students', [AdminReportController::class, 'getStudentsList']);
+    Route::get('classes',  [AdminReportController::class, 'getClasses']);
+    Route::get('teachers', [AdminReportController::class, 'getTeachers']);
 });
