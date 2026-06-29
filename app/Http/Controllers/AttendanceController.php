@@ -204,32 +204,7 @@ class AttendanceController extends Controller
         'notification_note'    => $totalMarked >= 10
             ? '3 random students notified out of ' . $totalMarked
             : 'Only ' . $totalMarked . ' students marked — minimum 10 required for notifications',
-    ], 201);
-
-        // // Randomly pick exactly 3 unique students
-        // $randomKeys = array_rand($successfulStudentIds, 3);
-
-        // // array_rand returns single value if count=1, array otherwise
-        // if (!is_array($randomKeys)) {
-        //     $randomKeys = [$randomKeys];
-        // }
-
-        // foreach ($randomKeys as $key) {
-        //     $studentId = $successfulStudentIds[$key];
-        //     $notifiedStudents[] = $studentId;
-
-            // Save notification in DB
-        //     \DB::table('notifications')->insert([
-        //         'student_id'  => $studentId,
-        //         'session_id'  => $session->id,
-        //         'message'     => 'Your attendance has been marked for today\'s class.',
-        //         'type'        => 'attendance_marked',
-        //         'is_read'     => false,
-        //         'created_at'  => Carbon::now(),
-        //         'updated_at'  => Carbon::now(),
-        //     ]);
-        // }
-    
+    ], 201);    
 }
 //get notification
 public function getNotifications($studentId)
@@ -254,7 +229,7 @@ public function getNotifications($studentId)
     return response()->json([
         'success' => true,
         'count'   => $notifications->count(),
-        'unread_count' => $unreadCount, 
+        'unread_count' => $unreadCount,   
         'data'    => $notifications,
     ]);
 }
