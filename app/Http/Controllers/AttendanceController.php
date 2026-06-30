@@ -80,7 +80,7 @@ class AttendanceController extends Controller
             'class_id'        => $classId,
             'attendance_date' => $attendanceDate,
             'status'          => $request->status,
-            'session_id'      => $session->id,
+            'session_id'      => $session->id,  // ← ADD
         ]);
 
         return response()->json([
@@ -108,8 +108,8 @@ class AttendanceController extends Controller
     }
  
 
-    // SAVE SESSION STUDENTS ( mark present)
-    public function saveSessionStudents(Request $request)
+    // SAVE SESSION STUDENTS (bulk mark present)
+public function saveSessionStudents(Request $request)
 {
     $request->validate([
         'session_id'    => 'required|integer|exists:attendance_sessions,id',
@@ -118,24 +118,19 @@ class AttendanceController extends Controller
     ]);
 
     $session = Session::find($request->session_id);
-
     if (!$session) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Session not found'
-        ], 404);
+        return response()->json(['success' => false, 'message' => 'Session not found'], 404);
     }
 
     $attendanceDate = Carbon::parse($session->start_time)->toDateString();
     $classId        = $session->class_id;
 
-    // ── Step 1: Mark attendance ───────────────────
-    $successfulStudentIds = [];
-
-    foreach ($request->student_ids as $studentId) {
-         Attendance::updateOrCreate(
+    // Step 1: Mark all students present
+    $markedIds = [];
+    foreach ($request->student_ids as $sid) {
+        Attendance::updateOrCreate(
             [
-                'student_id'      => $studentId,
+                'student_id'      => (int) $sid,
                 'class_id'        => $classId,
                 'attendance_date' => $attendanceDate,
             ],
@@ -144,12 +139,10 @@ class AttendanceController extends Controller
                 'status'     => 'present',
             ]
         );
-
-        // Track successfully marked students
-        $successfulStudentIds[] = (int) $studentId;
+        $markedIds[] = (int) $sid;
     }
 
-    // ── Step 2: Auto confirmation request ────────
+    // Step 2: Confirmation request
     \DB::table('confirmation_requests')
         ->where('session_id', $request->session_id)
         ->where('status', 'pending')
@@ -162,51 +155,43 @@ class AttendanceController extends Controller
         'created_at' => Carbon::now(),
         'updated_at' => Carbon::now(),
     ]);
+// Step 3: Random 3 students ko teacher-verification confirmation ke liye select karo
+$total              = count($markedIds);
+$notifiedStudents   = [];
 
-    // Step 3: Random notification logic 3 students only
-    $totalMarked = count($successfulStudentIds);
-    $notifiedStudents = [];
+if ($total >= 10) {
+    $pool = $markedIds;
+    shuffle($pool);
+    $selected3 = array_slice($pool, 0, 3);
 
-    if ($totalMarked >= 10) {
-        $shuffled = $successfulStudentIds;
-        shuffle($shuffled);
-
-        // Pick first 3 after shuffle — guaranteed unique
-        $selected = array_slice($shuffled, 0, 3);
-
-        foreach ($selected as $studentId) {
-            // Check no duplicate notification for same session
-            $alreadyNotified = \DB::table('notifications')
-                ->where('student_id', $studentId)
-                ->where('session_id', $session->id)
-                ->where('type', 'attendance_marked')
-                ->exists();
-                 if (!$alreadyNotified) {
-                \DB::table('notifications')->insert([
-                    'student_id'  => $studentId,
-                    'session_id'  => $session->id,
-                    'message'     => 'Your attendance has been randomly selected for verification. Please confirm.',
-                    'type'        => 'attendance_marked',
-                    'is_read'     => false,
-                    'created_at'  => Carbon::now(),
-                    'updated_at'  => Carbon::now(),
-                ]);
-                $notifiedStudents[] = $studentId;
-            }
-        }
+    // Sirf inhi 3 students ke liye confirmation_responses table mein entry banayenge
+    // taake polling sirf inhi 3 ko popup dikhaye
+    foreach ($selected3 as $chosenId) {
+        \DB::table('notifications')->insert([
+            'student_id'  => $chosenId,
+            'session_id'  => $session->id,
+            'message'     => 'Please confirm: is your teacher present in the classroom?',
+            'type'        => 'teacher_verification',
+            'is_read'     => 0,
+            'created_at'  => Carbon::now(),
+            'updated_at'  => Carbon::now(),
+        ]);
+        $notifiedStudents[] = $chosenId;
     }
-     return response()->json([
-        'success'              => true,
-        'message'              => 'Attendance marked successfully',
-        'total_marked'         => $totalMarked,
-        'notifications_sent'   => count($notifiedStudents),
-        'notified_student_ids' => $notifiedStudents,
-        'notification_note'    => $totalMarked >= 10
-            ? '3 random students notified out of ' . $totalMarked
-            : 'Only ' . $totalMarked . ' students marked — minimum 10 required for notifications',
-    ], 201);    
 }
-//get notification
+
+return response()->json([
+    'success'              => true,
+    'message'              => 'Attendance marked successfully',
+    'total_marked'         => $total,
+    'notifications_sent'   => count($notifiedStudents),
+    'notified_student_ids' => $notifiedStudents,
+    'note'                 => $total >= 10
+        ? '3 random students selected for teacher verification'
+        : 'Less than 10 students — no verification sent',
+], 201);
+    
+}
 public function getNotifications($studentId)
 {
     $notifications = \DB::table('notifications')
@@ -214,26 +199,31 @@ public function getNotifications($studentId)
         ->orderBy('created_at', 'desc')
         ->limit(20)
         ->get();
-        // Step 2: Unread count check karo BEFORE marking read
-    $unreadCount = \DB::table('notifications')
+
+         $unreadCount = \DB::table('notifications')
         ->where('student_id', $studentId)
-        ->where('is_read', false)
+        ->where('is_read', 0)
         ->count();
 
-    // Mark all as read
-    \DB::table('notifications')
-        ->where('student_id', $studentId)
-        ->where('is_read', false)
-        ->update(['is_read' => true]);
-
     return response()->json([
-        'success' => true,
-        'count'   => $notifications->count(),
-        'unread_count' => $unreadCount,   
-        'data'    => $notifications,
+        'success'      => true,
+        'unread_count' => $unreadCount,
+        'count'        => $notifications->count(),
+        'data'         => $notifications,
     ]);
 }
-//session report
+// Naya method — banner dikhne ke BAAD Flutter yeh call karega
+public function markNotificationsRead($studentId)
+{
+    \DB::table('notifications')
+        ->where('student_id', $studentId)
+        ->where('is_read', 0)
+        ->update(['is_read' => 1]);
+
+    return response()->json(['success' => true]);
+}
+
+
 
     public function sessionReport(Request $request)
 {
@@ -284,8 +274,9 @@ public function getActiveSession($teacherId)
     ]);
 }
 
+    // ─────────────────────────────────────────────
     // ATTENDANCE REPORT (admin sees all, teacher filtered)
-    
+    // ─────────────────────────────────────────────
     public function attendanceReport(Request $request)
     {
         $query = Attendance::with(['student', 'session.teacher'])

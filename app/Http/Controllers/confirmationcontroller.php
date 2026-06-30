@@ -48,68 +48,54 @@ class ConfirmationController extends Controller
             'request_id' => $confirmationRequest,
         ]);
     }
-
-    // ─────────────────────────────────────────────
-    // STUDENT: Poll for pending confirmation
-    // ─────────────────────────────────────────────
+ //get pending confirmation
     public function getPendingConfirmation(Request $request)
-    {
-        $request->validate([
-            'student_id' => 'required|integer',
-        ]);
+{
+    $request->validate(['student_id' => 'required|integer']);
+    $studentId = $request->student_id;
 
-        $studentId = $request->student_id;
+    // Step 1: Check karo yeh student teacher-verification ke liye selected hua tha
+    $notification = \DB::table('notifications')
+        ->where('student_id', $studentId)
+        ->where('type', 'teacher_verification')
+        ->where('is_read', 0)
+        ->latest('created_at')
+        ->first();
 
-        // Find attendance record for this student in an active session today
-        $attendance = Attendance::where('student_id', $studentId)
-            ->where('status', 'present')
-            ->whereDate('attendance_date', Carbon::today())
-            ->latest()
-            ->first();
-
-        if (!$attendance || !$attendance->session_id) {
-            return response()->json([
-                'success' => true,
-                'pending' => false,
-            ]);
-        }
-
-        // Check if there's a pending confirmation request for that session
-        $confirmationRequest = \DB::table('confirmation_requests')
-            ->where('session_id', $attendance->session_id)
-            ->where('status', 'pending')
-            ->where('expires_at', '>', Carbon::now())
-            ->first();
-
-        if (!$confirmationRequest) {
-            return response()->json([
-                'success' => true,
-                'pending' => false,
-            ]);
-        }
-
-        // Check if this student already responded
-        $alreadyResponded = \DB::table('confirmation_responses')
-            ->where('request_id', $confirmationRequest->id)
-            ->where('student_id', $studentId)
-            ->exists();
-
-        if ($alreadyResponded) {
-            return response()->json([
-                'success' => true,
-                'pending' => false,
-            ]);
-        }
-
-        return response()->json([
-            'success'    => true,
-            'pending'    => true,
-            'request_id' => $confirmationRequest->id,
-            'session_id' => $attendance->session_id,
-            'expires_at' => $confirmationRequest->expires_at,
-            'message'    => 'Is your teacher physically present in the classroom?',
-        ]);
+    if (!$notification) {
+        return response()->json(['success' => true, 'pending' => false]);
     }
+
+    // Step 2: Confirmation request find karo session ke liye
+    $confirmationRequest = \DB::table('confirmation_requests')
+        ->where('session_id', $notification->session_id)
+        ->where('status', 'pending')
+        ->where('expires_at', '>', Carbon::now())
+        ->first();
+
+    if (!$confirmationRequest) {
+        return response()->json(['success' => true, 'pending' => false]);
+    }
+
+    // Step 3: Check already responded
+    $alreadyResponded = \DB::table('confirmation_responses')
+        ->where('request_id', $confirmationRequest->id)
+        ->where('student_id', $studentId)
+        ->exists();
+
+    if ($alreadyResponded) {
+        return response()->json(['success' => true, 'pending' => false]);
+    }
+
+    return response()->json([
+        'success'    => true,
+        'pending'    => true,
+        'request_id' => $confirmationRequest->id,
+        'session_id' => $notification->session_id,
+        'expires_at' => $confirmationRequest->expires_at,
+        'message'    => 'Is your teacher physically present in the classroom?',
+    ]);
+}
 
     
     // STUDENT: Submit YES/NO response
@@ -161,6 +147,11 @@ class ConfirmationController extends Controller
             'created_at' => Carbon::now(),
             'updated_at' => Carbon::now(),
         ]);
+        // Response submit hone ke baad notification bhi read mark 
+\DB::table('notifications')
+    ->where('student_id', $request->student_id)
+    ->where('type', 'teacher_verification')
+    ->update(['is_read' => 1]);
 
         return response()->json([
             'success' => true,
@@ -198,10 +189,11 @@ class ConfirmationController extends Controller
         $noCount  = $responses->where('response', 'no')->count();
         $total    = $responses->count();
 
-        // Total students present in session
-        $totalStudents = Attendance::where('session_id', $request->session_id)
-            ->where('status', 'present')
-            ->count();
+        //sirf woh students count karo jinko notification mili thi
+    $totalSelected = \DB::table('notifications')
+        ->where('session_id', $request->session_id)
+        ->where('type', 'teacher_verification')
+        ->count();
 
         $verdict = 'Awaiting responses';
         if ($total > 0) {
@@ -216,7 +208,7 @@ class ConfirmationController extends Controller
             'yes_count'      => $yesCount,
             'no_count'       => $noCount,
             'total_responded'=> $total,
-            'total_students' => $totalStudents,
+            'total_students' => $totalSelected,
             'verdict'        => $verdict,
         ]);
     }
@@ -242,10 +234,15 @@ public function getResponseDirectory(Request $request)
         ]);
     }
 
-    // All students marked present in this session
-    $presentStudents = Attendance::with('student')
+     // FIX: sirf notification wale 3 students fetch karo
+    $selectedStudentIds = \DB::table('notifications')
         ->where('session_id', $request->session_id)
-        ->where('status', 'present')
+        ->where('type', 'teacher_verification')
+        ->pluck('student_id');
+
+    $selectedStudents = Attendance::with('student')
+        ->where('session_id', $request->session_id)
+        ->whereIn('student_id', $selectedStudentIds)
         ->get();
 
     // All responses for this request

@@ -145,7 +145,6 @@ Route::get('/attendance/report', [SessionController::class, 'attendanceReport'])
 
 
 // Teacher confirmation
-Route::post('/confirmation/request',  [ConfirmationController::class, 'requestConfirmation']);
 Route::get('/confirmation/results',   [ConfirmationController::class, 'getResults']);
 
 // Student confirmation
