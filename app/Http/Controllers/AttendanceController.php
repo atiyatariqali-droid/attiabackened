@@ -142,31 +142,36 @@ public function saveSessionStudents(Request $request)
         $markedIds[] = (int) $sid;
     }
 
-    // Step 2: Confirmation request
-    \DB::table('confirmation_requests')
-        ->where('session_id', $request->session_id)
-        ->where('status', 'pending')
-        ->update(['status' => 'closed']);
+    // Step 2: Random 3 students select karo
+    $total            = count($markedIds);
+    $notifiedStudents = [];
+    $selected3        = [];
 
-    \DB::table('confirmation_requests')->insert([
-        'session_id' => $request->session_id,
-        'status'     => 'pending',
-        'expires_at' => Carbon::now()->addMinutes(2),
-        'created_at' => Carbon::now(),
-        'updated_at' => Carbon::now(),
-    ]);
-// Step 3: Random 3 students ko teacher-verification confirmation ke liye select karo
-$total              = count($markedIds);
-$notifiedStudents   = [];
+    if ($total >= 10) {
+        $pool = $markedIds;
+        shuffle($pool);
+        $selected3 = array_slice($pool, 0, 3);
+    }
 
-if ($total >= 10) {
-    $pool = $markedIds;
-    shuffle($pool);
-    $selected3 = array_slice($pool, 0, 3);
-
-    // Sirf inhi 3 students ke liye confirmation_responses table mein entry banayenge
-    // taake polling sirf inhi 3 ko popup dikhaye
+    // Step 3: Sirf in 3 students ke liye PER-STUDENT confirmation_request + notification
     foreach ($selected3 as $chosenId) {
+        // Close any old pending requests for this student (cleanup)
+        \DB::table('confirmation_requests')
+            ->where('student_id', $chosenId)
+            ->where('status', 'pending')
+            ->update(['status' => 'closed']);
+
+        // Per-student confirmation request
+        \DB::table('confirmation_requests')->insert([
+            'session_id' => $session->id,
+            'student_id' => $chosenId,
+            'status'     => 'pending',
+            'expires_at' => Carbon::now()->addMinutes(5),
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
+        ]);
+
+        // Notification
         \DB::table('notifications')->insert([
             'student_id'  => $chosenId,
             'session_id'  => $session->id,
@@ -176,22 +181,23 @@ if ($total >= 10) {
             'created_at'  => Carbon::now(),
             'updated_at'  => Carbon::now(),
         ]);
+
         $notifiedStudents[] = $chosenId;
     }
-}
 
-return response()->json([
-    'success'              => true,
-    'message'              => 'Attendance marked successfully',
-    'total_marked'         => $total,
-    'notifications_sent'   => count($notifiedStudents),
-    'notified_student_ids' => $notifiedStudents,
-    'note'                 => $total >= 10
-        ? '3 random students selected for teacher verification'
-        : 'Less than 10 students — no verification sent',
-], 201);
-    
+    return response()->json([
+        'success'              => true,
+        'message'              => 'Attendance marked successfully',
+        'total_marked'         => $total,
+        'notifications_sent'   => count($notifiedStudents),
+        'notified_student_ids' => $notifiedStudents,
+        'note'                 => $total >= 10
+            ? '3 random students selected for teacher verification'
+            : 'Less than 10 students — no verification sent',
+    ], 201);
 }
+    
+
 public function getNotifications($studentId)
 {
     $notifications = \DB::table('notifications')
