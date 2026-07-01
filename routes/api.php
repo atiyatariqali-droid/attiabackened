@@ -150,5 +150,4 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('classes',  [AdminReportController::class, 'getClasses']);
         Route::get('teachers', [AdminReportController::class, 'getTeachers']);
     });
-
 });
