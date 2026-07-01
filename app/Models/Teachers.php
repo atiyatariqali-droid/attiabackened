@@ -18,12 +18,12 @@ class Teachers extends Model
         'device_id',
     ];
 
-    // ✅ Hide sensitive fields from API responses
+    //  Hide sensitive fields from API responses
     protected $hidden = [
         'password',
     ];
 
-    // ✅ Cast status to integer for consistency
+    //  Cast status to integer for consistency
     protected $casts = [
         'status' => 'integer',
     ];
