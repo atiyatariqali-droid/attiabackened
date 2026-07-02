@@ -11,7 +11,6 @@ class RoleController extends Controller
 {
     // ─────────────────────────────
     // ROLE CRUD FOR FLUTTER
-    // ─────────────────────────────
     
     // GET /roles - List all roles
     public function listRoles() {

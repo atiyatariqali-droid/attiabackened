@@ -11,13 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('system_settings', function (Blueprint $table) {
-            $table->id();
-            $table->text('key');
-            $table->text('value');
-            $table->text('description');
-            $table->text('type');
-            $table->timestamps();
+        Schema::table('confirmation_requests', function (Blueprint $table) {
+            $table->unsignedBigInteger('student_id')->nullable()->after('session_id');
+
         });
     }
 
@@ -26,6 +22,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('system_settings');
+        Schema::table('confirmation_requests', function (Blueprint $table) {
+             $table->dropColumn('student_id');
+
+        });
     }
 };
