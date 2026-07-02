@@ -72,7 +72,7 @@ class AdminProfileController extends Controller
 
     /**
      * POST /api/admin/profile/change-password
-     * Verifies current password before setting a new one.
+     * Verifies current password before setting a new one
      */
     public function changePassword(ChangePasswordRequest $request): JsonResponse
     {
