@@ -43,7 +43,7 @@ class AttendanceController extends Controller
         }
 
         // Location check: must be within classroom radius (default 100m)
-        $radius = (int) ($session->radius ?? 100);
+        $radius = 100; 
         $distance = $this->calculateDistance(
             (float) $session->latitude,
             (float) $session->longitude,

@@ -59,8 +59,9 @@ if (!$teacher) {
             $campusLng
         );
 
-        // Step 3: Must be within 500 meters
-        if ($distance > 500) {
+        // Step 3: Must be within 100 meters
+        $allowedRadius = 100; // meters — validation only, not stored in DB
+        if ($distance > $allowedRadius) {
             return response()->json([
                 'success'  => false,
                 'message'  => 'You are not inside the campus. You are ' . round($distance) . ' meters away.',
@@ -87,7 +88,6 @@ if (!$teacher) {
             'start_time' => Carbon::now(),
             'latitude'   => $request->latitude,
             'longitude'  => $request->longitude,
-            'radius'     => 100,
             'status'     => 'active'
         ]);
 
