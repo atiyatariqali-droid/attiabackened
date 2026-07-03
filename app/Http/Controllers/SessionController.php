@@ -87,6 +87,7 @@ if (!$teacher) {
             'start_time' => Carbon::now(),
             'latitude'   => $request->latitude,
             'longitude'  => $request->longitude,
+            'radius'     => 100,
             'status'     => 'active'
         ]);
 

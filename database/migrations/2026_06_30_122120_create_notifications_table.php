@@ -11,25 +11,27 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('notifications', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('student_id');
-            $table->unsignedBigInteger('session_id');
-            $table->text('message');
-            $table->string('type')->default('attendance_marked');
-            $table->boolean('is_read')->default(false);
-            $table->timestamps();
+        if (!Schema::hasTable('notifications')) {
+            Schema::create('notifications', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('student_id');
+                $table->unsignedBigInteger('session_id');
+                $table->text('message');
+                $table->string('type')->default('attendance_marked');
+                $table->boolean('is_read')->default(false);
+                $table->timestamps();
 
-            $table->foreign('student_id')
-              ->references('id')
-              ->on('users')
-              ->onDelete('cascade');
+                $table->foreign('student_id')
+                  ->references('id')
+                  ->on('users')
+                  ->onDelete('cascade');
 
-            $table->foreign('session_id')
-              ->references('id')
-              ->on('attendance_sessions')
-              ->onDelete('cascade');
-        });
+                $table->foreign('session_id')
+                  ->references('id')
+                  ->on('attendance_sessions')
+                  ->onDelete('cascade');
+            });
+        }
     }
 
     /**

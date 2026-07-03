@@ -149,5 +149,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('students', [AdminReportController::class, 'getStudentsList']);
         Route::get('classes',  [AdminReportController::class, 'getClasses']);
         Route::get('teachers', [AdminReportController::class, 'getTeachers']);
+        Route::get('student/{id}', [AdminReportController::class, 'getStudentDetailReport']);
+        Route::put('attendance/{id}', [AdminReportController::class, 'updateAttendance']);
     });
 });

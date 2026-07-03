@@ -11,10 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('confirmation_requests', function (Blueprint $table) {
-            $table->unsignedBigInteger('student_id')->nullable()->after('session_id');
-
-        });
+        if (!Schema::hasColumn('confirmation_requests', 'student_id')) {
+            Schema::table('confirmation_requests', function (Blueprint $table) {
+                $table->unsignedBigInteger('student_id')->nullable()->after('session_id');
+            });
+        }
     }
 
     /**

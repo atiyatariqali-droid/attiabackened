@@ -8,14 +8,16 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('attendance', function (Blueprint $table) {
-             $table->unsignedBigInteger('session_id')->nullable()->after('id');
+        if (!Schema::hasColumn('attendance', 'session_id')) {
+            Schema::table('attendance', function (Blueprint $table) {
+                 $table->unsignedBigInteger('session_id')->nullable()->after('id');
 
-            $table->foreign('session_id')
-                  ->references('id')
-                  ->on('attendance_sessions')
-                  ->onDelete('set null');
-        });
+                $table->foreign('session_id')
+                      ->references('id')
+                      ->on('attendance_sessions')
+                      ->onDelete('set null');
+            });
+        }
     }
 
     public function down(): void

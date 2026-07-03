@@ -6,14 +6,13 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::table('attendance', function (Blueprint $table) {
-             $table->boolean('is_active')->default(true)->after('status');
-        });
+        if (!Schema::hasColumn('attendance', 'is_active')) {
+            Schema::table('attendance', function (Blueprint $table) {
+                 $table->boolean('is_active')->default(true)->after('status');
+            });
+        }
     }
 
     /**

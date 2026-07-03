@@ -16,6 +16,7 @@ class Session extends Model
         'end_time',
         'latitude',
         'longitude',
+        'radius',
         'status'
     ];
 

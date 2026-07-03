@@ -42,7 +42,8 @@ class AttendanceController extends Controller
             ], 400);
         }
 
-        // Location check: must be within 100 meters of the teacher's session start location
+        // Location check: must be within classroom radius (default 100m)
+        $radius = (int) ($session->radius ?? 100);
         $distance = $this->calculateDistance(
             (float) $session->latitude,
             (float) $session->longitude,
@@ -50,7 +51,7 @@ class AttendanceController extends Controller
             (float) $request->longitude
         );
 
-        if ($distance > 100) {
+        if ($distance > $radius) {
             return response()->json([
                 'success' => false,
                 'message' => 'You are outside the classroom range. Distance: ' . round($distance) . ' meters.'
@@ -113,8 +114,10 @@ public function saveSessionStudents(Request $request)
 {
     $request->validate([
         'session_id'    => 'required|integer|exists:attendance_sessions,id',
-        'student_ids'   => 'required|array|min:1',
+        'student_ids'   => 'required|array|min:10',
         'student_ids.*' => 'integer',
+    ], [
+        'student_ids.min' => 'Minimum 10 students are required to submit attendance.',
     ]);
 
     $session = Session::find($request->session_id);
