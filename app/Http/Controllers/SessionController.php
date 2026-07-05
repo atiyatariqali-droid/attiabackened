@@ -197,6 +197,7 @@ if (!$teacher) {
         }
 
         $session->status = 'inactive';
+        $session->end_time = Carbon::now(); // NEW: record when the session actually ended
         $session->save();
 
         return response()->json([
@@ -218,6 +219,12 @@ if (!$teacher) {
         }
 
         $session->status = $request->status;
+        // Keep end_time consistent with status
+        if ($request->status === 'inactive') {
+            $session->end_time = Carbon::now();
+        } else {
+            $session->end_time = null;
+        }
         $session->save();
 
         return response()->json([
@@ -408,10 +415,15 @@ public function index()
         ->latest('created_at')
         ->get()
         ->map(function ($session) {
+            // NEW: attach class_name so the admin UI can display it
+            $class = ManageClass::find($session->class_id);
+            $className = $class ? ($class->class_name ?? $class->name) : 'Unknown';
+
             return [
                 'id'           => $session->id,
                 'teacher_name' => $session->teacher->username ?? 'Unknown',
                 'class_id'     => $session->class_id,
+                'class_name'   => $className, // NEW
                 'status'       => $session->status,
                 'latitude'     => $session->latitude,
                 'longitude'    => $session->longitude,
@@ -442,12 +454,21 @@ public function toggleStatus(Request $request, $id)
 
     // active <-> completed toggle
     $session->status = $session->status === 'active' ? 'inactive' : 'active';
+
+    // Keep end_time consistent with the new status
+    if ($session->status === 'inactive') {
+        $session->end_time = Carbon::now();
+    } else {
+        $session->end_time = null;
+    }
+
     $session->save();
 
     return response()->json([
-        'success' => true,
-        'id'      => $session->id,
-        'status'  => $session->status,
+        'success'  => true,
+        'id'       => $session->id,
+        'status'   => $session->status,
+        'end_time' => optional($session->end_time)->format('h:i A'), // NEW: so UI can refresh the displayed time immediately
     ]);
 }
 }
