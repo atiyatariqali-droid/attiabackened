@@ -60,7 +60,7 @@ if (!$teacher) {
         );
 
         // Step 3: Must be within 100 meters
-        $allowedRadius = 100; // meters — validation only, not stored in DB
+        $allowedRadius = 5000; // meters — validation only, not stored in DB
         if ($distance > $allowedRadius) {
             return response()->json([
                 'success'  => false,
@@ -99,21 +99,23 @@ if (!$teacher) {
     }
 
     // Fixed Haversine formula - calculates distance in meters
-    private function calculateDistance($lat1, $lon1, $lat2, $lon2)
+    private function calculateDistance($teacherLat, $teacherLng, $schoolLat, $schoolLng)
     {
-        $earthRadius = 6371000; // meters
+        $earthRadius = 6371; // KM
 
-        $dLat = deg2rad($lat2 - $lat1);
-        $dLon = deg2rad($lon2 - $lon1);
+        $dLat = deg2rad($schoolLat - $teacherLat);
+        $dLng = deg2rad($schoolLng - $teacherLng);
 
         $a = sin($dLat / 2) * sin($dLat / 2) +
-            cos(deg2rad($lat1)) *
-            cos(deg2rad($lat2)) *
-            sin($dLon / 2) * sin($dLon / 2);
+            cos(deg2rad($teacherLat)) *
+            cos(deg2rad($schoolLat)) *
+            sin($dLng / 2) * sin($dLng / 2);
 
         $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
 
-        return $earthRadius * $c;
+        $distanceKm = $earthRadius * $c;
+
+        return round($distanceKm * 1000, 2); // convert km to meters
     }
 
     public function login(Request $request)

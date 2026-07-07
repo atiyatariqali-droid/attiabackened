@@ -16,6 +16,7 @@ use App\Http\Controllers\AdminProfileController;
 use App\Http\Controllers\TeacherProfileController; 
 use App\Http\Controllers\ConfirmationController; 
 use App\Http\Controllers\AdminReportController;
+use App\Http\Controllers\AdminReportExportController;
 
 // PUBLIC ROUTES
 Route::post("/login", [UserController::class, "login"])->name('login');
@@ -136,17 +137,21 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('teacher/logout',                  [TeacherProfileController::class, 'logout']);
     Route::post('teacher/logout-all',              [TeacherProfileController::class, 'logoutAll']);
 
-    // ✅ FIX 1: Admin reports — method names corrected to match AdminReportController
-    Route::prefix('admin/reports')->group(function () {
-        Route::get('stats',            [AdminReportController::class, 'stats']);           // getStats → stats
-        Route::get('chart',            [AdminReportController::class, 'chart']);           // getChartData → chart
-        Route::get('students',         [AdminReportController::class, 'students']);        // getStudentsList → students
-        Route::get('classes',          [AdminReportController::class, 'classes']);         // getClasses → classes
-        Route::get('teachers',         [AdminReportController::class, 'teachers']);        // getTeachers → teachers
-        Route::get('student/{id}',     [AdminReportController::class, 'studentReport']);  // getStudentDetailReport → studentReport
-        // ✅ FIX 2: PUT → POST (Flutter POST bhej raha hai)
-        Route::post('attendance/{id}/update', [AdminReportController::class, 'updateAttendance']);
-    });
+   //Admin reports
+   Route::prefix('admin/reports')->group(function () {
+    Route::get('stats',    [AdminReportController::class, 'getStats']);
+    Route::get('chart',    [AdminReportController::class, 'getChartData']);
+    Route::get('students', [AdminReportController::class, 'getStudentsList']);
+    Route::get('classes',  [AdminReportController::class, 'getClasses']);
+    Route::get('teachers', [AdminReportController::class, 'getTeachers']);
+    Route::get('student/{id}', [AdminReportController::class, 'getStudentDetailReport']);
+    Route::put('attendance/{id}', [AdminReportController::class, 'updateAttendance']);
+    // Export routes
+    Route::get('export/pdf', [AdminReportExportController::class, 'exportPdf']);
+    Route::get('export/excel', [AdminReportExportController::class, 'exportExcel']);
+    Route::get('student/{id}/export/pdf', [AdminReportExportController::class, 'exportStudentPdf']);
+    Route::get('student/{id}/export/excel', [AdminReportExportController::class, 'exportStudentExcel']);
+});
 
     // ✅ FIX 3: Late students route — ab yahan add kiya
     Route::get('admin/late-students', function () {
