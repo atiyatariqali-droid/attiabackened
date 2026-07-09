@@ -89,6 +89,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Attendance
     Route::post('/mark-attendance',     [AttendanceController::class, 'markAttendance']);
+    Route::post('/submit-attendance',   [AttendanceController::class, 'submitAttendance']);
     Route::post('/session-students',    [AttendanceController::class, 'saveSessionStudents']);
     Route::get('/attendance/report',    [SessionController::class, 'attendanceReport']);
 

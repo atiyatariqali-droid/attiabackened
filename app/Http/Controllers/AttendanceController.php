@@ -200,6 +200,128 @@ public function saveSessionStudents(Request $request)
     ], 201);
 }
     
+    // SUBMIT ATTENDANCE BULK SAVE
+    public function submitAttendance(Request $request)
+    {
+        $request->validate([
+            'session_id' => 'required|integer|exists:attendance_sessions,id',
+            'latitude'   => 'required|numeric',
+            'longitude'  => 'required|numeric',
+            'attendance' => 'required|array',
+            'attendance.*.student_id' => 'required|integer',
+            'attendance.*.status'     => 'required|string|in:present,absent,late',
+            'attendance.*.reason'     => 'nullable|string',
+        ]);
+
+        $session = Session::find($request->session_id);
+        if (!$session) {
+            return response()->json(['success' => false, 'message' => 'Session not found'], 404);
+        }
+
+        if ($session->status !== 'active') {
+            return response()->json(['success' => false, 'message' => 'Session is not active'], 400);
+        }
+
+        // Location check: must be within classroom radius (default 100m)
+        $radius = 100; 
+        $distance = $this->calculateDistance(
+            (float) $session->latitude,
+            (float) $session->longitude,
+            (float) $request->latitude,
+            (float) $request->longitude
+        );
+
+        if ($distance > $radius) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are outside the classroom range. Distance: ' . round($distance) . ' meters.'
+            ], 400);
+        }
+
+        $attendanceDate = Carbon::parse($session->start_time)->toDateString();
+        $classId = $session->class_id;
+
+        $markedIds = [];
+        $presentOrLateIds = [];
+
+        foreach ($request->attendance as $att) {
+            $studentId = $att['student_id'];
+            $status = $att['status'];
+            $reason = $att['reason'] ?? null;
+
+            Attendance::updateOrCreate(
+                [
+                    'student_id'      => $studentId,
+                    'class_id'        => $classId,
+                    'attendance_date' => $attendanceDate,
+                ],
+                [
+                    'session_id' => $session->id,
+                    'status'     => $status,
+                ]
+            );
+
+            if ($status === 'present' || $status === 'late') {
+                $presentOrLateIds[] = $studentId;
+            }
+            $markedIds[] = $studentId;
+        }
+
+        // Verification logic
+        $totalPresentOrLate = count($presentOrLateIds);
+        $notifiedStudents = [];
+
+        if ($totalPresentOrLate >= 10) {
+            $pool = $presentOrLateIds;
+            shuffle($pool);
+            $selected3 = array_slice($pool, 0, 3);
+
+            foreach ($selected3 as $chosenId) {
+                // Close any old pending requests
+                \DB::table('confirmation_requests')
+                    ->where('student_id', $chosenId)
+                    ->where('status', 'pending')
+                    ->update(['status' => 'closed']);
+
+                // Create new request
+                \DB::table('confirmation_requests')->insert([
+                    'session_id' => $session->id,
+                    'student_id' => $chosenId,
+                    'status'     => 'pending',
+                    'expires_at' => Carbon::now()->addMinutes(5),
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ]);
+
+                // Insert notification
+                \DB::table('notifications')->insert([
+                    'student_id'  => $chosenId,
+                    'session_id'  => $session->id,
+                    'message'     => 'Please confirm: is your teacher present in the classroom?',
+                    'type'        => 'teacher_verification',
+                    'is_read'     => 0,
+                    'created_at'  => Carbon::now(),
+                    'updated_at'  => Carbon::now(),
+                ]);
+
+                $notifiedStudents[] = $chosenId;
+            }
+        }
+
+        return response()->json([
+            'success'              => true,
+            'message'              => 'Attendance submitted successfully',
+            'total_submitted'      => count($markedIds),
+            'total_present_or_late'=> $totalPresentOrLate,
+            'notifications_sent'   => count($notifiedStudents),
+            'notified_student_ids' => $notifiedStudents,
+            'note'                 => $totalPresentOrLate >= 10
+                ? '3 random students selected for teacher verification'
+                : 'Less than 10 present/late students — no verification sent',
+        ], 201);
+    }
+}
+    
 
 public function getNotifications($studentId)
 {
