@@ -320,7 +320,6 @@ public function saveSessionStudents(Request $request)
                 : 'Less than 10 present/late students — no verification sent',
         ], 201);
     }
-}
     
 
 public function getNotifications($studentId)
