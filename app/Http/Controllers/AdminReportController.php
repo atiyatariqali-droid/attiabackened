@@ -436,4 +436,173 @@ class AdminReportController extends Controller
             ]
         ]);
     }
+
+    // GET /api/admin/reports/teachers-summary
+    public function getTeachersSummaryReport(Request $request)
+    {
+        $teachers = DB::table('users')
+            ->where('role', 'teacher')
+            ->select('id', 'username as name', 'email', 'phone')
+            ->get();
+
+        $result = [];
+        foreach ($teachers as $teacher) {
+            $totalSessions = DB::table('attendance_sessions')
+                ->where('teacher_id', $teacher->id)
+                ->count();
+
+            $totalStudents = DB::table('users')
+                ->where('role', 'student')
+                ->where('teacher_id', $teacher->id)
+                ->count();
+
+            $attendanceQuery = DB::table('attendance as a')
+                ->join('attendance_sessions as s', 's.id', '=', 'a.session_id')
+                ->where('s.teacher_id', $teacher->id);
+
+            $totalMarked = (clone $attendanceQuery)->count();
+            $presentCount = (clone $attendanceQuery)->whereIn('a.status', ['present', 'late'])->count();
+            $absentCount = (clone $attendanceQuery)->where('a.status', 'absent')->count();
+            
+            $attendancePct = $totalMarked > 0 ? round(($presentCount / $totalMarked) * 100, 1) : 0;
+
+            $result[] = [
+                'teacher_id'      => $teacher->id,
+                'teacher_name'    => $teacher->name,
+                'email'           => $teacher->email,
+                'phone'           => $teacher->phone ?? '-',
+                'total_sessions'  => $totalSessions,
+                'total_students'  => $totalStudents,
+                'present_count'   => $presentCount,
+                'absent_count'    => $absentCount,
+                'total_marked'    => $totalMarked,
+                'attendance_pct'  => $attendancePct,
+            ];
+        }
+
+        return response()->json(['teachers' => $result]);
+    }
+
+    // GET /api/admin/reports/classes-summary
+    public function getClassesSummaryReport(Request $request)
+    {
+        $query = DB::table('manage_classes');
+        if ($request->filled('teacher_id')) {
+            $query->where('teacher_id', $request->teacher_id);
+        }
+        
+        $classes = $query->select('id', 'name as class_name', 'class_name as teacher_username', 'students_count', 'status')
+            ->get();
+
+        $result = [];
+        foreach ($classes as $class) {
+            $totalSessions = DB::table('attendance_sessions')
+                ->where('class_id', $class->id)
+                ->count();
+
+            $totalStudents = DB::table('users')
+                ->where('role', 'student')
+                ->where('class', $class->class_name)
+                ->count();
+
+            $attendanceQuery = DB::table('attendance')
+                ->where('class_id', $class->id);
+
+            $totalMarked = (clone $attendanceQuery)->count();
+            $presentCount = (clone $attendanceQuery)->whereIn('status', ['present', 'late'])->count();
+            $absentCount = (clone $attendanceQuery)->where('status', 'absent')->count();
+
+            $attendancePct = $totalMarked > 0 ? round(($presentCount / $totalMarked) * 100, 1) : 0;
+
+            $result[] = [
+                'class_id'        => $class->id,
+                'class_name'      => $class->class_name,
+                'teacher_name'    => $class->teacher_username ?? 'Not Assigned',
+                'status'          => $class->status,
+                'total_sessions'  => $totalSessions,
+                'total_students'  => $totalStudents ?: $class->students_count,
+                'present_count'   => $presentCount,
+                'absent_count'    => $absentCount,
+                'total_marked'    => $totalMarked,
+                'attendance_pct'  => $attendancePct,
+            ];
+        }
+
+        return response()->json(['classes' => $result]);
+    }
+
+    // GET /api/admin/reports/sessions-summary
+    public function getSessionsSummaryReport(Request $request)
+    {
+        $sessionsQuery = DB::table('attendance_sessions as s')
+            ->leftJoin('users as t', 't.id', '=', 's.teacher_id')
+            ->leftJoin('manage_classes as c', 'c.id', '=', 's.class_id')
+            ->select(
+                's.id as session_id',
+                's.created_at',
+                's.status',
+                't.username as teacher_name',
+                'c.name as class_name'
+            )
+            ->orderBy('s.created_at', 'desc');
+
+        if ($request->filled('teacher_id')) {
+            $sessionsQuery->where('s.teacher_id', $request->teacher_id);
+        }
+        if ($request->filled('class_id')) {
+            $sessionsQuery->where('s.class_id', $request->class_id);
+        }
+
+        $sessions = $sessionsQuery->get();
+
+        $result = [];
+        foreach ($sessions as $session) {
+            $attendanceQuery = DB::table('attendance')
+                ->where('session_id', $session->session_id);
+
+            $totalMarked = (clone $attendanceQuery)->count();
+            $presentCount = (clone $attendanceQuery)->where('status', 'present')->count();
+            $lateCount = (clone $attendanceQuery)->where('status', 'late')->count();
+            $absentCount = (clone $attendanceQuery)->where('status', 'absent')->count();
+
+            $attendancePct = $totalMarked > 0 ? round((($presentCount + $lateCount) / $totalMarked) * 100, 1) : 0;
+
+            $confirmationRequests = DB::table('confirmation_requests')
+                ->where('session_id', $session->session_id)
+                ->pluck('id');
+
+            $verdict = 'No verification';
+            if ($confirmationRequests->isNotEmpty()) {
+                $responses = DB::table('confirmation_responses')
+                    ->whereIn('request_id', $confirmationRequests)
+                    ->get();
+
+                $yesCount = $responses->where('response', 'yes')->count();
+                $noCount = $responses->where('response', 'no')->count();
+                $totalResponses = $responses->count();
+
+                if ($totalResponses > 0) {
+                    $verdict = $yesCount >= $noCount ? 'Teacher Present' : 'Teacher NOT Present';
+                } else {
+                    $verdict = 'Awaiting responses';
+                }
+            }
+
+            $result[] = [
+                'session_id'     => $session->session_id,
+                'class_name'     => $session->class_name ?? 'Unknown Class',
+                'teacher_name'   => $session->teacher_name ?? 'Unknown Teacher',
+                'status'         => $session->status,
+                'date_time'      => \Carbon\Carbon::parse($session->created_at)->format('Y-m-d h:i A'),
+                'present_count'  => $presentCount,
+                'late_count'     => $lateCount,
+                'absent_count'   => $absentCount,
+                'total_marked'   => $totalMarked,
+                'attendance_pct' => $attendancePct,
+                'verdict'        => $verdict,
+            ];
+        }
+
+        return response()->json(['sessions' => $result]);
+    }
 }

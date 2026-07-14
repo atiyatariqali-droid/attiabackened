@@ -114,10 +114,10 @@ public function saveSessionStudents(Request $request)
 {
     $request->validate([
         'session_id'    => 'required|integer|exists:attendance_sessions,id',
-        'student_ids'   => 'required|array|min:10',
+        'student_ids'   => 'required|array|min:1',
         'student_ids.*' => 'integer',
     ], [
-        'student_ids.min' => 'Minimum 10 students are required to submit attendance.',
+        'student_ids.min' => 'Minimum 1 student is required to submit attendance.',
     ]);
 
     $session = Session::find($request->session_id);

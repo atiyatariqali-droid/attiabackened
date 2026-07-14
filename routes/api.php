@@ -147,6 +147,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('teachers', [AdminReportController::class, 'getTeachers']);
     Route::get('student/{id}', [AdminReportController::class, 'getStudentDetailReport']);
     Route::put('attendance/{id}', [AdminReportController::class, 'updateAttendance']);
+    Route::get('teachers-summary', [AdminReportController::class, 'getTeachersSummaryReport']);
+    Route::get('classes-summary', [AdminReportController::class, 'getClassesSummaryReport']);
+    Route::get('sessions-summary', [AdminReportController::class, 'getSessionsSummaryReport']);
     // Export routes
     Route::get('export/pdf', [AdminReportExportController::class, 'exportPdf']);
     Route::get('export/excel', [AdminReportExportController::class, 'exportExcel']);
@@ -156,12 +159,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // ✅ FIX 3: Late students route — ab yahan add kiya
     Route::get('admin/late-students', function () {
-        $late = DB::table('attendances')
-            ->join('attendance_sessions', 'attendances.session_id', '=', 'attendance_sessions.id')
-            ->join('users as students', 'attendances.student_id', '=', 'students.id')
+        $late = DB::table('attendance')
+            ->join('attendance_sessions', 'attendance.session_id', '=', 'attendance_sessions.id')
+            ->join('users as students', 'attendance.student_id', '=', 'students.id')
             ->leftJoin('users as teachers', 'teachers.id', '=', 'attendance_sessions.teacher_id')
             ->leftJoin('classes', 'classes.teacher_id', '=', 'attendance_sessions.teacher_id')
-            ->where('attendances.status', 'late')
+            ->where('attendance.status', 'late')
             ->orderByDesc('attendance_sessions.created_at')
             ->select(
                 'students.id as student_id',
@@ -170,7 +173,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
                 DB::raw('COALESCE(classes.class_name, "-") as class_name'),
                 DB::raw('COALESCE(teachers.name, "Not Assigned") as teacher_name'),
                 DB::raw('DATE(attendance_sessions.created_at) as session_date'),
-                DB::raw('TIME_FORMAT(attendances.created_at, "%h:%i %p") as marked_time')
+                DB::raw('TIME_FORMAT(attendance.created_at, "%h:%i %p") as marked_time')
             )
             ->get();
 
