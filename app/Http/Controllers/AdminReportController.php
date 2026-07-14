@@ -54,7 +54,8 @@ class AdminReportController extends Controller
 
         // Attendance Query (Querying attendance table directly)
         $attendanceQuery = DB::table('attendance as a')
-            ->join('users as s', 's.id', '=', 'a.student_id');
+            ->join('users as s', 's.id', '=', 'a.student_id')
+            ->leftJoin('attendance_sessions as sess', 'sess.id', '=', 'a.session_id');
 
         if ($date) {
             $attendanceQuery->whereDate('a.attendance_date', $date);
@@ -67,7 +68,7 @@ class AdminReportController extends Controller
         }
 
         if ($classId)   $attendanceQuery->where('a.class_id', $classId);
-        if ($teacherId) $attendanceQuery->where('s.teacher_id', $teacherId);
+        if ($teacherId) $attendanceQuery->where('sess.teacher_id', $teacherId);
         if ($sessionId) $attendanceQuery->where('a.session_id', $sessionId);
         if ($studentId) $attendanceQuery->where('s.id', $studentId);
         if ($studentName) $attendanceQuery->where('s.username', 'like', "%{$studentName}%");
@@ -81,13 +82,14 @@ class AdminReportController extends Controller
         $compareDays = (int)($days ?? 7);
         $prevQuery = DB::table('attendance as a')
             ->join('users as s', 's.id', '=', 'a.student_id')
+            ->leftJoin('attendance_sessions as sess', 'sess.id', '=', 'a.session_id')
             ->whereBetween('a.attendance_date', [
                 now()->subDays($compareDays * 2)->toDateString(),
                 now()->subDays($compareDays)->toDateString()
             ]);
 
         if ($classId)   $prevQuery->where('a.class_id', $classId);
-        if ($teacherId) $prevQuery->where('s.teacher_id', $teacherId);
+        if ($teacherId) $prevQuery->where('sess.teacher_id', $teacherId);
         if ($sessionId) $prevQuery->where('a.session_id', $sessionId);
         if ($studentId) $prevQuery->where('s.id', $studentId);
         if ($studentName) $prevQuery->where('s.username', 'like', "%{$studentName}%");
@@ -140,10 +142,11 @@ class AdminReportController extends Controller
         foreach ($datesList as $dStr) {
             $query = DB::table('attendance as a')
                 ->join('users as s', 's.id', '=', 'a.student_id')
+                ->leftJoin('attendance_sessions as sess', 'sess.id', '=', 'a.session_id')
                 ->whereDate('a.attendance_date', $dStr);
 
             if ($classId)   $query->where('a.class_id', $classId);
-            if ($teacherId) $query->where('s.teacher_id', $teacherId);
+            if ($teacherId) $query->where('sess.teacher_id', $teacherId);
             if ($sessionId) $query->where('a.session_id', $sessionId);
             if ($studentId) $query->where('s.id', $studentId);
             if ($studentName) $query->where('s.username', 'like', "%{$studentName}%");
@@ -199,7 +202,16 @@ class AdminReportController extends Controller
             if ($className) $studentQuery->where('s.class', $className);
         }
         if ($teacherId) {
-            $studentQuery->where('s.teacher_id', $teacherId);
+            $studentQuery->where(function($q) use ($teacherId) {
+                $q->where('s.teacher_id', $teacherId)
+                  ->orWhereExists(function ($ex) use ($teacherId) {
+                      $ex->select(DB::raw(1))
+                        ->from('attendance as att')
+                        ->join('attendance_sessions as sses', 'sses.id', '=', 'att.session_id')
+                        ->whereRaw('att.student_id = s.id')
+                        ->where('sses.teacher_id', $teacherId);
+                  });
+            });
         }
         if ($studentId) {
             $studentQuery->where('s.id', $studentId);
@@ -217,6 +229,7 @@ class AdminReportController extends Controller
         $result = [];
         foreach ($students as $student) {
             $query = DB::table('attendance as a')
+                ->leftJoin('attendance_sessions as sess', 'sess.id', '=', 'a.session_id')
                 ->where('a.student_id', $student->student_id);
 
             // Apply date filters
@@ -231,15 +244,18 @@ class AdminReportController extends Controller
             if ($sessionId) {
                 $query->where('a.session_id', $sessionId);
             }
+            if ($teacherId) {
+                $query->where('sess.teacher_id', $teacherId);
+            }
 
             $total   = (clone $query)->count();
-            $present = (clone $query)->where('status', 'present')->count();
-            $absent  = (clone $query)->where('status', 'absent')->count();
-            $late    = (clone $query)->where('status', 'late')->count();
+            $present = (clone $query)->where('a.status', 'present')->count();
+            $absent  = (clone $query)->where('a.status', 'absent')->count();
+            $late    = (clone $query)->where('a.status', 'late')->count();
 
             // Filter status if status is specified
             if ($status) {
-                $hasStatusRecord = (clone $query)->where('status', $status)->exists();
+                $hasStatusRecord = (clone $query)->where('a.status', $status)->exists();
                 if (!$hasStatusRecord) {
                     continue;
                 }
@@ -638,7 +654,7 @@ public function getStudentDetailReport(Request $request, $id)
             $query->where('teacher_id', $request->teacher_id);
         }
         
-        $classes = $query->select('id', 'name as class_name', 'class_name as teacher_username', 'students_count', 'status')
+        $classes = $query->select('id', 'class_name as class_name', 'name as teacher_username', 'students_count', 'status')
             ->get();
 
         $result = [];
@@ -689,7 +705,7 @@ public function getStudentDetailReport(Request $request, $id)
                 's.created_at',
                 's.status',
                 't.username as teacher_name',
-                'c.name as class_name'
+                'c.class_name as class_name'
             )
             ->orderBy('s.created_at', 'desc');
 
@@ -729,7 +745,17 @@ public function getStudentDetailReport(Request $request, $id)
                 $totalResponses = $responses->count();
 
                 if ($totalResponses > 0) {
-                    $verdict = $yesCount >= $noCount ? 'Teacher Present' : 'Teacher NOT Present';
+                    $hasAdminRequest = DB::table('confirmation_requests')
+                        ->join('users', 'users.id', '=', 'confirmation_requests.student_id')
+                        ->whereIn('confirmation_requests.id', $confirmationRequests)
+                        ->where('users.role', 'admin')
+                        ->exists();
+
+                    if ($hasAdminRequest) {
+                        $verdict = $yesCount > 0 ? 'Teacher Present' : 'Teacher NOT Present';
+                    } else {
+                        $verdict = $yesCount >= $noCount ? 'Teacher Present' : 'Teacher NOT Present';
+                    }
                 } else {
                     $verdict = 'Awaiting responses';
                 }

@@ -98,9 +98,18 @@ if (!$userRole) {
             ]);
         }
 
+        $attendances = \DB::table('attendance as a')
+            ->where('a.student_id', $id)
+            ->leftJoin('manage_classes as c', 'c.id', '=', 'a.class_id')
+            ->select('a.status', 'a.attendance_date', 'a.class_id', 'c.class_name')
+            ->get();
+
+        $studentData = $student->toArray();
+        $studentData['attendances'] = $attendances;
+
         return response()->json([
             "success" => true,
-            "data" => $student
+            "data" => $studentData
         ]);
     }
 

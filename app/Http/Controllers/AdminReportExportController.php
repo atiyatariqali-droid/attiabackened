@@ -200,7 +200,9 @@ class AdminReportExportController extends Controller
         if ($studentName) $studentCountQuery->where('username', 'like', "%{$studentName}%");
         $totalStudents = $studentCountQuery->count();
 
-        $attendanceQuery = DB::table('attendance as a')->join('users as s', 's.id', '=', 'a.student_id');
+        $attendanceQuery = DB::table('attendance as a')
+            ->join('users as s', 's.id', '=', 'a.student_id')
+            ->leftJoin('attendance_sessions as sess', 'sess.id', '=', 'a.session_id');
         if ($date) {
             $attendanceQuery->whereDate('a.attendance_date', $date);
         } elseif ($startDate && $endDate) {
@@ -209,7 +211,7 @@ class AdminReportExportController extends Controller
             $attendanceQuery->where('a.attendance_date', '>=', now()->subDays((int)$days)->toDateString());
         }
         if ($classId)   $attendanceQuery->where('a.class_id', $classId);
-        if ($teacherId) $attendanceQuery->where('s.teacher_id', $teacherId);
+        if ($teacherId) $attendanceQuery->where('sess.teacher_id', $teacherId);
         if ($sessionId) $attendanceQuery->where('a.session_id', $sessionId);
         if ($studentId) $attendanceQuery->where('s.id', $studentId);
         if ($studentName) $attendanceQuery->where('s.username', 'like', "%{$studentName}%");
@@ -226,7 +228,18 @@ class AdminReportExportController extends Controller
             ->select('s.id as student_id', 's.username as student_name', 's.roll_no', 's.class as class_name', 't.username as teacher_name');
 
         if ($classId && $className !== 'All Classes') $studentQuery->where('s.class', $className);
-        if ($teacherId) $studentQuery->where('s.teacher_id', $teacherId);
+        if ($teacherId) {
+            $studentQuery->where(function($q) use ($teacherId) {
+                $q->where('s.teacher_id', $teacherId)
+                  ->orWhereExists(function ($ex) use ($teacherId) {
+                      $ex->select(DB::raw(1))
+                        ->from('attendance as att')
+                        ->join('attendance_sessions as sses', 'sses.id', '=', 'att.session_id')
+                        ->whereRaw('att.student_id = s.id')
+                        ->where('sses.teacher_id', $teacherId);
+                  });
+            });
+        }
         if ($studentId) $studentQuery->where('s.id', $studentId);
         if ($studentName) $studentQuery->where('s.username', 'like', "%{$studentName}%");
         if ($studentIds) {
@@ -238,7 +251,9 @@ class AdminReportExportController extends Controller
 
         $rows = [];
         foreach ($students as $student) {
-            $query = DB::table('attendance as a')->where('a.student_id', $student->student_id);
+            $query = DB::table('attendance as a')
+                ->leftJoin('attendance_sessions as sess', 'sess.id', '=', 'a.session_id')
+                ->where('a.student_id', $student->student_id);
             if ($date) {
                 $query->whereDate('a.attendance_date', $date);
             } elseif ($startDate && $endDate) {
@@ -247,14 +262,15 @@ class AdminReportExportController extends Controller
                 $query->where('a.attendance_date', '>=', now()->subDays((int)$days)->toDateString());
             }
             if ($sessionId) $query->where('a.session_id', $sessionId);
+            if ($teacherId) $query->where('sess.teacher_id', $teacherId);
 
             $total   = (clone $query)->count();
-            $present = (clone $query)->where('status', 'present')->count();
-            $absent  = (clone $query)->where('status', 'absent')->count();
-            $late    = (clone $query)->where('status', 'late')->count();
+            $present = (clone $query)->where('a.status', 'present')->count();
+            $absent  = (clone $query)->where('a.status', 'absent')->count();
+            $late    = (clone $query)->where('a.status', 'late')->count();
 
             if ($status) {
-                $hasStatusRecord = (clone $query)->where('status', $status)->exists();
+                $hasStatusRecord = (clone $query)->where('a.status', $status)->exists();
                 if (!$hasStatusRecord) continue;
             }
 

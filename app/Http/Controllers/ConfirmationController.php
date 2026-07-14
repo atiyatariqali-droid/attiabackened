@@ -37,18 +37,67 @@ class ConfirmationController extends Controller
             ->where('status', 'pending')
             ->update(['status' => 'closed']);
 
-        $confirmationRequest = \DB::table('confirmation_requests')->insertGetId([
-            'session_id' => $request->session_id,
-            'status'     => 'pending',
-            'expires_at' => Carbon::now()->addMinutes(2),
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
-        ]);
+        $markedStudentIds = \DB::table('attendance')
+            ->where('session_id', $request->session_id)
+            ->whereIn('status', ['present', 'late'])
+            ->pluck('student_id')
+            ->toArray();
+
+        $totalPresent = count($markedStudentIds);
+        $targetUserIds = [];
+        $message = 'Please confirm: is your teacher present in the classroom?';
+
+        if ($totalPresent >= 10) {
+            $pool = $markedStudentIds;
+            shuffle($pool);
+            $selected3 = array_slice($pool, 0, 3);
+            $targetUserIds = $selected3;
+        } else {
+            $targetUserIds = \DB::table('users')
+                ->where('role', 'admin')
+                ->pluck('id')
+                ->toArray();
+            $message = "Class session has less than 10 students present. Please verify: is teacher {$session->teacher->username} present in class?";
+        }
+
+        $parentMode = \DB::table('system_settings')->where('key', 'parent_verification_mode')->value('value');
+        $studentExpiryMinutes = ($parentMode === 'true' || $parentMode === '1' || $parentMode === 1) ? 1440 : 5;
+        $adminExpiryMinutes = 10;
+
+        foreach ($targetUserIds as $chosenId) {
+            \DB::table('confirmation_requests')
+                ->where('student_id', $chosenId)
+                ->where('status', 'pending')
+                ->update(['status' => 'closed']);
+
+            $isStudent = ($totalPresent >= 10);
+            $expiryMinutes = $isStudent ? $studentExpiryMinutes : $adminExpiryMinutes;
+
+            \DB::table('confirmation_requests')->insert([
+                'session_id' => $request->session_id,
+                'student_id' => $chosenId,
+                'status'     => 'pending',
+                'expires_at' => Carbon::now()->addMinutes($expiryMinutes),
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ]);
+
+            \DB::table('notifications')->insert([
+                'student_id'  => $chosenId,
+                'session_id'  => $request->session_id,
+                'message'     => $message,
+                'type'        => 'teacher_verification',
+                'is_read'     => 0,
+                'created_at'  => Carbon::now(),
+                'updated_at'  => Carbon::now(),
+            ]);
+        }
 
         return response()->json([
             'success'    => true,
-            'message'    => 'Confirmation request sent to all students',
-            'request_id' => $confirmationRequest,
+            'message'    => $totalPresent >= 10
+                ? 'Confirmation request sent to students'
+                : 'Less than 10 students - confirmation request sent to admins',
         ]);
     }
 
@@ -175,7 +224,17 @@ class ConfirmationController extends Controller
 
         $verdict = 'Awaiting responses';
         if ($total > 0) {
-            $verdict = $yesCount > $noCount ? 'Teacher Present ✓' : 'Teacher NOT Present ✗';
+            $hasAdminRequest = \DB::table('confirmation_requests')
+                ->join('users', 'users.id', '=', 'confirmation_requests.student_id')
+                ->whereIn('confirmation_requests.id', $requestIds)
+                ->where('users.role', 'admin')
+                ->exists();
+
+            if ($hasAdminRequest) {
+                $verdict = $yesCount > 0 ? 'Teacher Present ✓' : 'Teacher NOT Present ✗';
+            } else {
+                $verdict = $yesCount >= $noCount ? 'Teacher Present ✓' : 'Teacher NOT Present ✗';
+            }
         }
 
         $latestRequest = \DB::table('confirmation_requests')
