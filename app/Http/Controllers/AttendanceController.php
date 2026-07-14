@@ -145,31 +145,46 @@ public function saveSessionStudents(Request $request)
         $markedIds[] = (int) $sid;
     }
 
-    // Step 2: Random 3 students select karo
+    // Step 2: Determine target users for verification
     $total            = count($markedIds);
     $notifiedStudents = [];
-    $selected3        = [];
+    $targetUserIds    = [];
+    $message          = 'Please confirm: is your teacher present in the classroom?';
 
     if ($total >= 10) {
         $pool = $markedIds;
         shuffle($pool);
         $selected3 = array_slice($pool, 0, 3);
+        $targetUserIds = $selected3;
+    } else {
+        $targetUserIds = \DB::table('users')
+            ->where('role', 'admin')
+            ->pluck('id')
+            ->toArray();
+        $message = "Class session has less than 10 students present. Please verify: is teacher {$session->teacher->username} present in class?";
     }
 
-    // Step 3: Sirf in 3 students ke liye PER-STUDENT confirmation_request + notification
-    foreach ($selected3 as $chosenId) {
-        // Close any old pending requests for this student (cleanup)
+    // Step 3: Create confirmation requests and notifications
+    $parentMode = \DB::table('system_settings')->where('key', 'parent_verification_mode')->value('value');
+    $studentExpiryMinutes = ($parentMode === 'true' || $parentMode === '1' || $parentMode === 1) ? 1440 : 5;
+    $adminExpiryMinutes = 10;
+
+    foreach ($targetUserIds as $chosenId) {
+        // Close any old pending requests for this user (cleanup)
         \DB::table('confirmation_requests')
             ->where('student_id', $chosenId)
             ->where('status', 'pending')
             ->update(['status' => 'closed']);
 
-        // Per-student confirmation request
+        $isStudent = ($total >= 10);
+        $expiryMinutes = $isStudent ? $studentExpiryMinutes : $adminExpiryMinutes;
+
+        // Per-user confirmation request
         \DB::table('confirmation_requests')->insert([
             'session_id' => $session->id,
             'student_id' => $chosenId,
             'status'     => 'pending',
-            'expires_at' => Carbon::now()->addMinutes(5),
+            'expires_at' => Carbon::now()->addMinutes($expiryMinutes),
             'created_at' => Carbon::now(),
             'updated_at' => Carbon::now(),
         ]);
@@ -178,7 +193,7 @@ public function saveSessionStudents(Request $request)
         \DB::table('notifications')->insert([
             'student_id'  => $chosenId,
             'session_id'  => $session->id,
-            'message'     => 'Please confirm: is your teacher present in the classroom?',
+            'message'     => $message,
             'type'        => 'teacher_verification',
             'is_read'     => 0,
             'created_at'  => Carbon::now(),
@@ -270,42 +285,58 @@ public function saveSessionStudents(Request $request)
         // Verification logic
         $totalPresentOrLate = count($presentOrLateIds);
         $notifiedStudents = [];
+        $targetUserIds = [];
+        $message = 'Please confirm: is your teacher present in the classroom?';
 
         if ($totalPresentOrLate >= 10) {
             $pool = $presentOrLateIds;
             shuffle($pool);
             $selected3 = array_slice($pool, 0, 3);
+            $targetUserIds = $selected3;
+        } else {
+            $targetUserIds = \DB::table('users')
+                ->where('role', 'admin')
+                ->pluck('id')
+                ->toArray();
+            $message = "Class session has less than 10 students present. Please verify: is teacher {$session->teacher->username} present in class?";
+        }
 
-            foreach ($selected3 as $chosenId) {
-                // Close any old pending requests
-                \DB::table('confirmation_requests')
-                    ->where('student_id', $chosenId)
-                    ->where('status', 'pending')
-                    ->update(['status' => 'closed']);
+        $parentMode = \DB::table('system_settings')->where('key', 'parent_verification_mode')->value('value');
+        $studentExpiryMinutes = ($parentMode === 'true' || $parentMode === '1' || $parentMode === 1) ? 1440 : 5;
+        $adminExpiryMinutes = 10;
 
-                // Create new request
-                \DB::table('confirmation_requests')->insert([
-                    'session_id' => $session->id,
-                    'student_id' => $chosenId,
-                    'status'     => 'pending',
-                    'expires_at' => Carbon::now()->addMinutes(5),
-                    'created_at' => Carbon::now(),
-                    'updated_at' => Carbon::now(),
-                ]);
+        foreach ($targetUserIds as $chosenId) {
+            // Close any old pending requests
+            \DB::table('confirmation_requests')
+                ->where('student_id', $chosenId)
+                ->where('status', 'pending')
+                ->update(['status' => 'closed']);
 
-                // Insert notification
-                \DB::table('notifications')->insert([
-                    'student_id'  => $chosenId,
-                    'session_id'  => $session->id,
-                    'message'     => 'Please confirm: is your teacher present in the classroom?',
-                    'type'        => 'teacher_verification',
-                    'is_read'     => 0,
-                    'created_at'  => Carbon::now(),
-                    'updated_at'  => Carbon::now(),
-                ]);
+            $isStudent = ($totalPresentOrLate >= 10);
+            $expiryMinutes = $isStudent ? $studentExpiryMinutes : $adminExpiryMinutes;
 
-                $notifiedStudents[] = $chosenId;
-            }
+            // Create new request
+            \DB::table('confirmation_requests')->insert([
+                'session_id' => $session->id,
+                'student_id' => $chosenId,
+                'status'     => 'pending',
+                'expires_at' => Carbon::now()->addMinutes($expiryMinutes),
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ]);
+
+            // Insert notification
+            \DB::table('notifications')->insert([
+                'student_id'  => $chosenId,
+                'session_id'  => $session->id,
+                'message'     => $message,
+                'type'        => 'teacher_verification',
+                'is_read'     => 0,
+                'created_at'  => Carbon::now(),
+                'updated_at'  => Carbon::now(),
+            ]);
+
+            $notifiedStudents[] = $chosenId;
         }
 
         return response()->json([
@@ -317,7 +348,7 @@ public function saveSessionStudents(Request $request)
             'notified_student_ids' => $notifiedStudents,
             'note'                 => $totalPresentOrLate >= 10
                 ? '3 random students selected for teacher verification'
-                : 'Less than 10 present/late students — no verification sent',
+                : 'Less than 10 present/late students — verification requests sent to admins',
         ], 201);
     }
     
