@@ -57,7 +57,6 @@ class AttendanceController extends Controller
                 'message' => 'You are outside the classroom range. Distance: ' . round($distance) . ' meters.'
             ], 400);
         }
-
         // Get class_id and date from the session
         $classId = $session->class_id;
         $attendanceDate = Carbon::parse($session->start_time)->toDateString();
@@ -89,6 +88,15 @@ class AttendanceController extends Controller
             'message' => 'Attendance Marked Successfully',
             'data'    => $attendance
         ], 201);
+    }
+
+    // Calculate how many Present students should receive verification notifications
+    private function calculateNotificationCount($presentCount)
+    {
+        if ($presentCount <= 0) {
+            return 0;
+        }
+        return max(1, (int) round($presentCount * 0.20));
     }
 
     private function calculateDistance($lat1, $lon1, $lat2, $lon2)
@@ -130,6 +138,9 @@ public function saveSessionStudents(Request $request)
 
     // Step 1: Mark all students present
     $markedIds = [];
+    $presentOrLateIds = [];
+    $presentOnlyIds = [];
+
     foreach ($request->student_ids as $sid) {
         Attendance::updateOrCreate(
             [
@@ -145,18 +156,16 @@ public function saveSessionStudents(Request $request)
         $markedIds[] = (int) $sid;
     }
 
-    // Step 2: Random 3 students select karo
-    $total            = count($markedIds);
-    $notifiedStudents = [];
-    $selected3        = [];
+    // Step 2: 20% of Present students rule
+    $total             = count($markedIds); // all marked here are 'present'
+    $notificationCount = $this->calculateNotificationCount($total);
+    $notifiedStudents  = [];
 
-    if ($total >= 10) {
-        $pool = $markedIds;
-        shuffle($pool);
-        $selected3 = array_slice($pool, 0, 3);
-    }
+    $pool = $markedIds;
+    shuffle($pool);
+    $selected3 = array_slice($pool, 0, min($notificationCount, count($pool)));
 
-    // Step 3: Sirf in 3 students ke liye PER-STUDENT confirmation_request + notification
+    // Step 3: Sirf in selected Present students ke liye PER-STUDENT confirmation_request + notification
     foreach ($selected3 as $chosenId) {
         // Close any old pending requests for this student (cleanup)
         \DB::table('confirmation_requests')
@@ -169,7 +178,7 @@ public function saveSessionStudents(Request $request)
             'session_id' => $session->id,
             'student_id' => $chosenId,
             'status'     => 'pending',
-            'expires_at' => Carbon::now()->addMinutes(5),
+            'expires_at' => Carbon::now()->addHour(1),
             'created_at' => Carbon::now(),
             'updated_at' => Carbon::now(),
         ]);
@@ -194,9 +203,9 @@ public function saveSessionStudents(Request $request)
         'total_marked'         => $total,
         'notifications_sent'   => count($notifiedStudents),
         'notified_student_ids' => $notifiedStudents,
-        'note'                 => $total >= 10
-            ? '3 random students selected for teacher verification'
-            : 'Less than 10 students — no verification sent',
+        'note'                 => $total > 0
+            ? $notificationCount . ' of ' . $total . ' present students selected for verification (20% rule)'
+            : 'No present students — no verification sent',
     ], 201);
 }
     
@@ -264,17 +273,21 @@ public function saveSessionStudents(Request $request)
             if ($status === 'present' || $status === 'late') {
                 $presentOrLateIds[] = $studentId;
             }
+            if ($status === 'present') {
+                $presentOnlyIds[] = $studentId;
+            }
             $markedIds[] = $studentId;
         }
 
-        // Verification logic
-        $totalPresentOrLate = count($presentOrLateIds);
-        $notifiedStudents = [];
+        // Verification logic — 20% of PRESENT students only (late/absent excluded)
+        $totalPresent      = count($presentOnlyIds);
+        $notificationCount = $this->calculateNotificationCount($totalPresent);
+        $notifiedStudents  = [];
 
-        if ($totalPresentOrLate >= 10) {
-            $pool = $presentOrLateIds;
+        if ($totalPresent > 0) {
+            $pool = $presentOnlyIds;
             shuffle($pool);
-            $selected3 = array_slice($pool, 0, 3);
+            $selected3 = array_slice($pool, 0, min($notificationCount, count($pool)));
 
             foreach ($selected3 as $chosenId) {
                 // Close any old pending requests
@@ -288,7 +301,7 @@ public function saveSessionStudents(Request $request)
                     'session_id' => $session->id,
                     'student_id' => $chosenId,
                     'status'     => 'pending',
-                    'expires_at' => Carbon::now()->addMinutes(5),
+                    'expires_at' => Carbon::now()->addHour(1),
                     'created_at' => Carbon::now(),
                     'updated_at' => Carbon::now(),
                 ]);
@@ -312,12 +325,12 @@ public function saveSessionStudents(Request $request)
             'success'              => true,
             'message'              => 'Attendance submitted successfully',
             'total_submitted'      => count($markedIds),
-            'total_present_or_late'=> $totalPresentOrLate,
+            'total_present'        => $totalPresent,
             'notifications_sent'   => count($notifiedStudents),
             'notified_student_ids' => $notifiedStudents,
-            'note'                 => $totalPresentOrLate >= 10
-                ? '3 random students selected for teacher verification'
-                : 'Less than 10 present/late students — no verification sent',
+            'note'                 => $totalPresent > 0
+                ? $notificationCount . ' of ' . $totalPresent . ' present students selected for verification (20% rule)'
+                : 'No present students — no verification sent',
         ], 201);
     }
     
@@ -342,6 +355,48 @@ public function getNotifications($studentId)
         'data'         => $notifications,
     ]);
 }
+
+
+// STUDENT DASHBOARD SUMMARY (today's status + this month's counts)
+    public function getStudentDashboardStatus($studentId)
+    {
+        $today = Carbon::today()->toDateString();
+
+        // Today's status
+        $todayRecord = Attendance::where('student_id', $studentId)
+            ->where('attendance_date', $today)
+            ->first();
+
+        $todayStatus = $todayRecord ? $todayRecord->status : 'not_marked';
+
+        // This month's counts
+        $monthStart = Carbon::now()->startOfMonth()->toDateString();
+        $monthEnd   = Carbon::now()->endOfMonth()->toDateString();
+
+        $monthRecords = Attendance::where('student_id', $studentId)
+            ->whereBetween('attendance_date', [$monthStart, $monthEnd])
+            ->get();
+
+        $present = $monthRecords->where('status', 'present')->count();
+        $late    = $monthRecords->where('status', 'late')->count();
+        $absent  = $monthRecords->where('status', 'absent')->count();
+
+        $totalMarked = $monthRecords->count();
+        $overallPercentage = $totalMarked > 0
+            ? round((($present + $late) / $totalMarked) * 100, 1)
+            : 0;
+
+        return response()->json([
+            'success' => true,
+            'today_status' => $todayStatus, // 'present' | 'late' | 'absent' | 'not_marked'
+            'overall_percentage' => $overallPercentage,
+            'this_month' => [
+                'present' => $present,
+                'late'    => $late,
+                'absent'  => $absent,
+            ],
+        ]);
+    }
 // Naya method — banner dikhne ke BAAD Flutter yeh call karega
 public function markNotificationsRead($studentId)
 {

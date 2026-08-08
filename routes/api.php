@@ -129,6 +129,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Student profile
     Route::post('student/profile/change-password', [AdminProfileController::class, 'studentChangePassword']);
     Route::post('student/logout',                   [AdminProfileController::class, 'logout']);
+    // Student dashboard summary
+    Route::get('/student/{student_id}/dashboard-status', [AttendanceController::class, 'getStudentDashboardStatus']);
 
     // Teacher profile
     Route::get ('teacher/profile',                 [TeacherProfileController::class, 'show']);
@@ -157,7 +159,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('student/{id}/export/excel', [AdminReportExportController::class, 'exportStudentExcel']);
 });
 
-    // ✅ FIX 3: Late students route — ab yahan add kiya
+    // FIX 3: Late students route — ab yahan add kiya
     Route::get('admin/late-students', function () {
         $late = DB::table('attendance')
             ->join('attendance_sessions', 'attendance.session_id', '=', 'attendance_sessions.id')
