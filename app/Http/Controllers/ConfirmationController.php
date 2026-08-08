@@ -23,6 +23,14 @@ class ConfirmationController extends Controller
                 'message' => 'Session is not active'
             ], 400);
         }
+        // ── NEW: restrict this notification to BS classes only ──
+    $class = \App\Models\ManageClass::find($session->class_id);
+    if (!$class || stripos(trim($class->class_name), 'BS') !== 0) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Confirmation requests are only enabled for BS classes'
+        ], 403);
+    }
 
         \DB::table('confirmation_requests')
             ->where('session_id', $request->session_id)
@@ -119,6 +127,7 @@ class ConfirmationController extends Controller
                 'message' => 'You have already responded'
             ], 400);
         }
+        
 
         \DB::table('confirmation_responses')->insert([
             'request_id' => $request->request_id,

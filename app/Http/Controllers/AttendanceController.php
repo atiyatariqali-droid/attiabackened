@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Attendance;
 use App\Models\Session;
+use App\Models\ManageClass;
 use Carbon\Carbon;
 
 class AttendanceController extends Controller
@@ -43,7 +44,7 @@ class AttendanceController extends Controller
         }
 
         // Location check: must be within classroom radius (default 100m)
-        $radius = 100; 
+        $radius = 100;
         $distance = $this->calculateDistance(
             (float) $session->latitude,
             (float) $session->longitude,
@@ -81,7 +82,7 @@ class AttendanceController extends Controller
             'class_id'        => $classId,
             'attendance_date' => $attendanceDate,
             'status'          => $request->status,
-            'session_id'      => $session->id,  // ← ADD
+            'session_id'      => $session->id,
         ]);
 
         return response()->json([
@@ -89,6 +90,22 @@ class AttendanceController extends Controller
             'message' => 'Attendance Marked Successfully',
             'data'    => $attendance
         ], 201);
+    }
+
+    // Calculate how many Present students should receive verification notifications (20% rule)
+    private function calculateNotificationCount($presentCount)
+    {
+        if ($presentCount <= 0) {
+            return 0;
+        }
+        return max(1, (int) round($presentCount * 0.20));
+    }
+
+    // Restrict teacher-verification notifications to BS classes only
+    private function isBsClass($classId)
+    {
+        $class = ManageClass::find($classId);
+        return $class && stripos(trim($class->class_name), 'BS') === 0;
     }
 
     private function calculateDistance($lat1, $lon1, $lat2, $lon2)
@@ -107,99 +124,104 @@ class AttendanceController extends Controller
 
         return $earthRadius * $c;
     }
- 
+
 
     // SAVE SESSION STUDENTS (bulk mark present)
-public function saveSessionStudents(Request $request)
-{
-    $request->validate([
-        'session_id'    => 'required|integer|exists:attendance_sessions,id',
-        'student_ids'   => 'required|array|min:1',
-        'student_ids.*' => 'integer',
-    ], [
-        'student_ids.min' => 'Minimum 1 student is required to submit attendance.',
-    ]);
-
-    $session = Session::find($request->session_id);
-    if (!$session) {
-        return response()->json(['success' => false, 'message' => 'Session not found'], 404);
-    }
-
-    $attendanceDate = Carbon::parse($session->start_time)->toDateString();
-    $classId        = $session->class_id;
-
-    // Step 1: Mark all students present
-    $markedIds = [];
-    foreach ($request->student_ids as $sid) {
-        Attendance::updateOrCreate(
-            [
-                'student_id'      => (int) $sid,
-                'class_id'        => $classId,
-                'attendance_date' => $attendanceDate,
-            ],
-            [
-                'session_id' => $session->id,
-                'status'     => 'present',
-            ]
-        );
-        $markedIds[] = (int) $sid;
-    }
-
-    // Step 2: Random 3 students select karo
-    $total            = count($markedIds);
-    $notifiedStudents = [];
-    $selected3        = [];
-
-    if ($total >= 10) {
-        $pool = $markedIds;
-        shuffle($pool);
-        $selected3 = array_slice($pool, 0, 3);
-    }
-
-    // Step 3: Sirf in 3 students ke liye PER-STUDENT confirmation_request + notification
-    foreach ($selected3 as $chosenId) {
-        // Close any old pending requests for this student (cleanup)
-        \DB::table('confirmation_requests')
-            ->where('student_id', $chosenId)
-            ->where('status', 'pending')
-            ->update(['status' => 'closed']);
-
-        // Per-student confirmation request
-        \DB::table('confirmation_requests')->insert([
-            'session_id' => $session->id,
-            'student_id' => $chosenId,
-            'status'     => 'pending',
-            'expires_at' => Carbon::now()->addMinutes(5),
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
+    public function saveSessionStudents(Request $request)
+    {
+        $request->validate([
+            'session_id'    => 'required|integer|exists:attendance_sessions,id',
+            'student_ids'   => 'required|array|min:1',
+            'student_ids.*' => 'integer',
+        ], [
+            'student_ids.min' => 'Minimum 1 student is required to submit attendance.',
         ]);
 
-        // Notification
-        \DB::table('notifications')->insert([
-            'student_id'  => $chosenId,
-            'session_id'  => $session->id,
-            'message'     => 'Please confirm: is your teacher present in the classroom?',
-            'type'        => 'teacher_verification',
-            'is_read'     => 0,
-            'created_at'  => Carbon::now(),
-            'updated_at'  => Carbon::now(),
-        ]);
+        $session = Session::find($request->session_id);
+        if (!$session) {
+            return response()->json(['success' => false, 'message' => 'Session not found'], 404);
+        }
 
-        $notifiedStudents[] = $chosenId;
+        $attendanceDate = Carbon::parse($session->start_time)->toDateString();
+        $classId        = $session->class_id;
+
+        // Step 1: Mark all students present
+        $markedIds = [];
+        foreach ($request->student_ids as $sid) {
+            Attendance::updateOrCreate(
+                [
+                    'student_id'      => (int) $sid,
+                    'class_id'        => $classId,
+                    'attendance_date' => $attendanceDate,
+                ],
+                [
+                    'session_id' => $session->id,
+                    'status'     => 'present',
+                ]
+            );
+            $markedIds[] = (int) $sid;
+        }
+
+        // Step 2: restrict verification to BS classes only
+        $isBsClass = $this->isBsClass($classId);
+
+        // Step 3: 20% of Present students rule
+        $total             = count($markedIds); // all marked here are 'present'
+        $notificationCount = $isBsClass ? $this->calculateNotificationCount($total) : 0;
+        $notifiedStudents  = [];
+
+        if ($isBsClass && $notificationCount > 0) {
+            $pool = $markedIds;
+            shuffle($pool);
+            $selected = array_slice($pool, 0, min($notificationCount, count($pool)));
+
+            // Step 4: Sirf in selected Present students ke liye PER-STUDENT confirmation_request + notification
+            foreach ($selected as $chosenId) {
+                // Close any old pending requests for this student (cleanup)
+                \DB::table('confirmation_requests')
+                    ->where('student_id', $chosenId)
+                    ->where('status', 'pending')
+                    ->update(['status' => 'closed']);
+
+                // Per-student confirmation request
+                \DB::table('confirmation_requests')->insert([
+                    'session_id' => $session->id,
+                    'student_id' => $chosenId,
+                    'status'     => 'pending',
+                    'expires_at' => Carbon::now()->addHour(1),
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ]);
+
+                // Notification
+                \DB::table('notifications')->insert([
+                    'student_id'  => $chosenId,
+                    'session_id'  => $session->id,
+                    'message'     => 'Please confirm: is your teacher present in the classroom?',
+                    'type'        => 'teacher_verification',
+                    'is_read'     => 0,
+                    'created_at'  => Carbon::now(),
+                    'updated_at'  => Carbon::now(),
+                ]);
+
+                $notifiedStudents[] = $chosenId;
+            }
+        }
+
+        return response()->json([
+            'success'              => true,
+            'message'              => 'Attendance marked successfully',
+            'total_marked'         => $total,
+            'notifications_sent'   => count($notifiedStudents),
+            'notified_student_ids' => $notifiedStudents,
+            'note'                 => !$isBsClass
+                ? 'Verification not applicable — not a BS class'
+                : ($total > 0
+                    ? $notificationCount . ' of ' . $total . ' present students selected for verification (20% rule)'
+                    : 'No present students — no verification sent'),
+        ], 201);
     }
 
-    return response()->json([
-        'success'              => true,
-        'message'              => 'Attendance marked successfully',
-        'total_marked'         => $total,
-        'notifications_sent'   => count($notifiedStudents),
-        'notified_student_ids' => $notifiedStudents,
-        'note'                 => $total >= 10
-            ? '3 random students selected for teacher verification'
-            : 'Less than 10 students — no verification sent',
-    ], 201);
-}
-    
     // SUBMIT ATTENDANCE BULK SAVE
     public function submitAttendance(Request $request)
     {
@@ -223,7 +245,7 @@ public function saveSessionStudents(Request $request)
         }
 
         // Location check: must be within classroom radius (default 100m)
-        $radius = 100; 
+        $radius = 100;
         $distance = $this->calculateDistance(
             (float) $session->latitude,
             (float) $session->longitude,
@@ -242,7 +264,7 @@ public function saveSessionStudents(Request $request)
         $classId = $session->class_id;
 
         $markedIds = [];
-        $presentOrLateIds = [];
+        $presentOnlyIds = [];
 
         foreach ($request->attendance as $att) {
             $studentId = $att['student_id'];
@@ -261,22 +283,26 @@ public function saveSessionStudents(Request $request)
                 ]
             );
 
-            if ($status === 'present' || $status === 'late') {
-                $presentOrLateIds[] = $studentId;
+            if ($status === 'present') {
+                $presentOnlyIds[] = $studentId;
             }
             $markedIds[] = $studentId;
         }
 
-        // Verification logic
-        $totalPresentOrLate = count($presentOrLateIds);
-        $notifiedStudents = [];
+        // restrict verification to BS classes only
+        $isBsClass = $this->isBsClass($classId);
 
-        if ($totalPresentOrLate >= 10) {
-            $pool = $presentOrLateIds;
+        // Verification logic — 20% of PRESENT students only (late/absent excluded)
+        $totalPresent      = count($presentOnlyIds);
+        $notificationCount = $isBsClass ? $this->calculateNotificationCount($totalPresent) : 0;
+        $notifiedStudents  = [];
+
+        if ($isBsClass && $totalPresent > 0 && $notificationCount > 0) {
+            $pool = $presentOnlyIds;
             shuffle($pool);
-            $selected3 = array_slice($pool, 0, 3);
+            $selected = array_slice($pool, 0, min($notificationCount, count($pool)));
 
-            foreach ($selected3 as $chosenId) {
+            foreach ($selected as $chosenId) {
                 // Close any old pending requests
                 \DB::table('confirmation_requests')
                     ->where('student_id', $chosenId)
@@ -288,7 +314,7 @@ public function saveSessionStudents(Request $request)
                     'session_id' => $session->id,
                     'student_id' => $chosenId,
                     'status'     => 'pending',
-                    'expires_at' => Carbon::now()->addMinutes(5),
+                    'expires_at' => Carbon::now()->addHour(1),
                     'created_at' => Carbon::now(),
                     'updated_at' => Carbon::now(),
                 ]);
@@ -312,97 +338,141 @@ public function saveSessionStudents(Request $request)
             'success'              => true,
             'message'              => 'Attendance submitted successfully',
             'total_submitted'      => count($markedIds),
-            'total_present_or_late'=> $totalPresentOrLate,
+            'total_present'        => $totalPresent,
             'notifications_sent'   => count($notifiedStudents),
             'notified_student_ids' => $notifiedStudents,
-            'note'                 => $totalPresentOrLate >= 10
-                ? '3 random students selected for teacher verification'
-                : 'Less than 10 present/late students — no verification sent',
+            'note'                 => !$isBsClass
+                ? 'Verification not applicable — not a BS class'
+                : ($totalPresent > 0
+                    ? $notificationCount . ' of ' . $totalPresent . ' present students selected for verification (20% rule)'
+                    : 'No present students — no verification sent'),
         ], 201);
     }
-    
 
-public function getNotifications($studentId)
-{
-    $notifications = \DB::table('notifications')
-        ->where('student_id', $studentId)
-        ->orderBy('created_at', 'desc')
-        ->limit(20)
-        ->get();
 
-         $unreadCount = \DB::table('notifications')
-        ->where('student_id', $studentId)
-        ->where('is_read', 0)
-        ->count();
+    public function getNotifications($studentId)
+    {
+        $notifications = \DB::table('notifications')
+            ->where('student_id', $studentId)
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get();
 
-    return response()->json([
-        'success'      => true,
-        'unread_count' => $unreadCount,
-        'count'        => $notifications->count(),
-        'data'         => $notifications,
-    ]);
-}
-// Naya method — banner dikhne ke BAAD Flutter yeh call karega
-public function markNotificationsRead($studentId)
-{
-    \DB::table('notifications')
-        ->where('student_id', $studentId)
-        ->where('is_read', 0)
-        ->update(['is_read' => 1]);
+        $unreadCount = \DB::table('notifications')
+            ->where('student_id', $studentId)
+            ->where('is_read', 0)
+            ->count();
 
-    return response()->json(['success' => true]);
-}
+        return response()->json([
+            'success'      => true,
+            'unread_count' => $unreadCount,
+            'count'        => $notifications->count(),
+            'data'         => $notifications,
+        ]);
+    }
+
+    // STUDENT DASHBOARD SUMMARY (today's status + this month's counts)
+    public function getStudentDashboardStatus($studentId)
+    {
+        $today = Carbon::today()->toDateString();
+
+        // Today's status
+        $todayRecord = Attendance::where('student_id', $studentId)
+            ->where('attendance_date', $today)
+            ->first();
+
+        $todayStatus = $todayRecord ? $todayRecord->status : 'not_marked';
+
+        // This month's counts
+        $monthStart = Carbon::now()->startOfMonth()->toDateString();
+        $monthEnd   = Carbon::now()->endOfMonth()->toDateString();
+
+        $monthRecords = Attendance::where('student_id', $studentId)
+            ->whereBetween('attendance_date', [$monthStart, $monthEnd])
+            ->get();
+
+        $present = $monthRecords->where('status', 'present')->count();
+        $late    = $monthRecords->where('status', 'late')->count();
+        $absent  = $monthRecords->where('status', 'absent')->count();
+
+        $totalMarked = $monthRecords->count();
+        $overallPercentage = $totalMarked > 0
+            ? round((($present + $late) / $totalMarked) * 100, 1)
+            : 0;
+
+        return response()->json([
+            'success' => true,
+            'today_status' => $todayStatus, // 'present' | 'late' | 'absent' | 'not_marked'
+            'overall_percentage' => $overallPercentage,
+            'this_month' => [
+                'present' => $present,
+                'late'    => $late,
+                'absent'  => $absent,
+            ],
+        ]);
+    }
+
+    // Naya method — banner dikhne ke BAAD Flutter yeh call karega
+    public function markNotificationsRead($studentId)
+    {
+        \DB::table('notifications')
+            ->where('student_id', $studentId)
+            ->where('is_read', 0)
+            ->update(['is_read' => 1]);
+
+        return response()->json(['success' => true]);
+    }
 
 
 
     public function sessionReport(Request $request)
-{
-    $query = Session::with('teacher')->orderBy('created_at', 'desc');
+    {
+        $query = Session::with('teacher')->orderBy('created_at', 'desc');
 
-    if ($request->filled('status')) {
-        $query->where('status', $request->status);
-    }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
 
-    if ($request->filled('search')) {
-        $search = $request->search;
-        $query->where(function ($q) use ($search) {
-            $q->where('id', 'like', "%{$search}%")
-              ->orWhereHas('teacher', function ($tq) use ($search) {
-                  $tq->where('name', 'like', "%{$search}%");
-              });
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('id', 'like', "%{$search}%")
+                  ->orWhereHas('teacher', function ($tq) use ($search) {
+                      $tq->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $sessions = $query->get()->map(function ($session) {
+            return [
+                'session_id'       => $session->id,
+                'user_name'        => $session->teacher->username ?? 'Unknown',
+                'current_location' => round($session->latitude, 6) . ', ' . round($session->longitude, 6),
+                'status'           => $session->status,
+                'created_at'       => optional($session->created_at)->format('Y-m-d H:i:s'),
+            ];
         });
+
+        return response()->json([
+            'success' => true,
+            'count'   => $sessions->count(),
+            'data'    => $sessions,
+        ]);
     }
 
-    $sessions = $query->get()->map(function ($session) {
-        return [
-            'session_id'       => $session->id,
-            'user_name'        => $session->teacher->username ?? 'Unknown',
-            'current_location' => round($session->latitude, 6) . ', ' . round($session->longitude, 6),
-            'status'           => $session->status,
-            'created_at'       => optional($session->created_at)->format('Y-m-d H:i:s'),
-        ];
-    });
+    public function getActiveSession($teacherId)
+    {
+        $session = Session::where('teacher_id', $teacherId)
+                          ->where('status', 'active')
+                          ->latest('created_at')
+                          ->first();
 
-    return response()->json([
-        'success' => true,
-        'count'   => $sessions->count(),
-        'data'    => $sessions,
-    ]);
-}
-
-public function getActiveSession($teacherId)
-{
-    $session = Session::where('teacher_id', $teacherId)
-                      ->where('status', 'active')
-                      ->latest('created_at')
-                      ->first();
-
-    return response()->json([
-        'success' => true,
-        'active'  => $session !== null,
-        'data'    => $session
-    ]);
-}
+        return response()->json([
+            'success' => true,
+            'active'  => $session !== null,
+            'data'    => $session
+        ]);
+    }
 
     // ─────────────────────────────────────────────
     // ATTENDANCE REPORT (admin sees all, teacher filtered)
