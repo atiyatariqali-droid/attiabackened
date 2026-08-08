@@ -59,7 +59,7 @@ if (!$teacher) {
             $campusLng
         );
 
-        // Step 3: Must be within 100 meters
+        // Step 3: Must be within 150 meters
         $allowedRadius = 150; // meters — validation only, not stored in DB
         if ($distance > $allowedRadius) {
             return response()->json([
