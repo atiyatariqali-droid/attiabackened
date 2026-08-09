@@ -172,6 +172,7 @@ class AdminReportController extends Controller
         $status      = $request->query('status');
         $sessionId   = $request->query('session_id');
         $studentId   = $request->query('student_id');
+        $studentIds  = $request->query('student_ids'); //for multi-student selection
         $studentName = $request->query('student_name');
         $date        = $request->query('date');
         $startDate   = $request->query('start_date');
@@ -205,6 +206,10 @@ class AdminReportController extends Controller
         }
         if ($studentName) {
             $studentQuery->where('s.username', 'like', "%{$studentName}%");
+        }
+        if ($studentIds) {
+            $ids = is_array($studentIds) ? $studentIds : explode(',', $studentIds);
+            $studentQuery->whereIn('s.id', $ids);
         }
 
         $students = $studentQuery->orderBy('s.class')->orderBy('s.username')->get();
@@ -320,10 +325,17 @@ class AdminReportController extends Controller
                 'a.attendance_date',
                 'a.status',
                 'c.class_name'
-            )
-            ->orderBy('a.attendance_date', 'desc')
-            ->get();
+            );
+            // ->orderBy('a.attendance_date', 'desc')
+            // ->get();
+        // NEW: optional date range filter (used by teacher/student personal reports)
+        $startDate = $request->query('start_date');
+        $endDate   = $request->query('end_date');
+        if ($startDate && $endDate) {
+            $logsQuery->whereBetween('a.attendance_date', [$startDate, $endDate]);
+        }
 
+        $attendanceLogs = $logsQuery->orderBy('a.attendance_date', 'desc')->get();
         $totalClasses = $attendanceLogs->count();
         $presentCount = $attendanceLogs->where('status', 'present')->count();
         $absentCount  = $attendanceLogs->where('status', 'absent')->count();

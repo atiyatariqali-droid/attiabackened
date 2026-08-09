@@ -36,7 +36,7 @@ class AdminReportExportController extends Controller
     // GET /api/admin/reports/student/{id}/export/pdf
     public function exportStudentPdf(Request $request, $id)
     {
-        $data = $this->buildStudentReportPayload($id);
+        $data = $this->buildStudentReportPayload($id, $request);
         if ($data === null) {
             abort(404, 'Student not found');
         }
@@ -51,7 +51,7 @@ class AdminReportExportController extends Controller
     // GET /api/admin/reports/student/{id}/export/excel
     public function exportStudentExcel(Request $request, $id)
     {
-        $data = $this->buildStudentReportPayload($id);
+        $data = $this->buildStudentReportPayload($id, $request);
         if ($data === null) {
             abort(404, 'Student not found');
         }
@@ -64,7 +64,7 @@ class AdminReportExportController extends Controller
      * Mirrors AdminReportController::getStudentDetailReport so the
      * exported file matches exactly what's shown in the student report modal.
      */
-    private function buildStudentReportPayload($id): ?array
+     protected function buildStudentReportPayload($id, Request $request = null): ?array
     {
         $student = DB::table('users as s')
             ->where('s.id', $id)
@@ -77,12 +77,21 @@ class AdminReportExportController extends Controller
             return null;
         }
 
-        $attendanceLogs = DB::table('attendance as a')
+        $logsQuery = DB::table('attendance as a')
             ->where('a.student_id', $id)
             ->leftJoin('manage_classes as c', 'c.id', '=', 'a.class_id')
-            ->select('a.id as attendance_id', 'a.attendance_date', 'a.status', 'c.class_name')
-            ->orderBy('a.attendance_date', 'desc')
-            ->get();
+            ->select('a.id as attendance_id', 'a.attendance_date', 'a.status', 'c.class_name');
+
+        // NEW: optional date range filter for teacher/student exports
+        if ($request) {
+            $startDate = $request->query('start_date');
+            $endDate   = $request->query('end_date');
+            if ($startDate && $endDate) {
+                $logsQuery->whereBetween('a.attendance_date', [$startDate, $endDate]);
+            }
+        }
+
+        $attendanceLogs = $logsQuery->orderBy('a.attendance_date', 'desc')->get();
 
         $totalClasses = $attendanceLogs->count();
         $presentCount = $attendanceLogs->where('status', 'present')->count();
@@ -134,7 +143,7 @@ class AdminReportExportController extends Controller
      * (mirrors AdminReportController::getStats / getStudentsList) so the
      * export always reflects the currently applied filters.
      */
-    private function buildReportPayload(Request $request): array
+    protected function buildReportPayload(Request $request): array
     {
         $classId     = $request->query('class_id');
         $teacherId   = $request->query('teacher_id');
@@ -142,6 +151,7 @@ class AdminReportExportController extends Controller
         $status      = $request->query('status');
         $sessionId   = $request->query('session_id');
         $studentId   = $request->query('student_id');
+        $studentIds  = $request->query('student_ids'); //multi-student export
         $studentName = $request->query('student_name');
         $date        = $request->query('date');
         $startDate   = $request->query('start_date');
@@ -219,6 +229,10 @@ class AdminReportExportController extends Controller
         if ($teacherId) $studentQuery->where('s.teacher_id', $teacherId);
         if ($studentId) $studentQuery->where('s.id', $studentId);
         if ($studentName) $studentQuery->where('s.username', 'like', "%{$studentName}%");
+        if ($studentIds) {
+            $ids = is_array($studentIds) ? $studentIds : explode(',', $studentIds);
+            $studentQuery->whereIn('s.id', $ids);
+        }
 
         $students = $studentQuery->orderBy('s.class')->orderBy('s.username')->get();
 
