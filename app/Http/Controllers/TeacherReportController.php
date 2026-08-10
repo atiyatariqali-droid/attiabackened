@@ -11,7 +11,7 @@ class TeacherReportController extends Controller
     private function authTeacherId(Request $request)
     {
         $user = $request->user();
-            if (!$user || !$user->hasRole('teacher')) {
+        if (!$user || !$user->hasRole('teacher')) {
             abort(403, 'Unauthorized Access');
         }
         return $user->id;

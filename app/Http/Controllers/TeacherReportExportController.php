@@ -10,7 +10,7 @@ class TeacherReportExportController extends AdminReportExportController
     private function authTeacherId(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (!$user || !$user->hasRole('teacher')) {
             abort(403, 'Unauthorized Access');
         }
         return $user->id;
