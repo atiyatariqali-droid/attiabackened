@@ -297,109 +297,249 @@ class AdminReportController extends Controller
     }
 
     // GET /api/admin/reports/student/{id}
-    public function getStudentDetailReport(Request $request, $id)
-    {
-        $student = DB::table('users as s')
-            ->where('s.id', $id)
-            ->where('s.role', 'student')
-            ->leftJoin('users as t', 't.id', '=', 's.teacher_id')
-            ->select(
-                's.id as student_id',
-                's.username as student_name',
-                's.roll_no',
-                's.class as class_name',
-                't.username as teacher_name'
-            )
+    // public function getStudentDetailReport(Request $request, $id)
+    // {
+    //     $student = DB::table('users as s')
+    //         ->where('s.id', $id)
+    //         ->where('s.role', 'student')
+    //         ->leftJoin('users as t', 't.id', '=', 's.teacher_id')
+    //         ->select(
+    //             's.id as student_id',
+    //             's.username as student_name',
+    //             's.roll_no',
+    //             's.class as class_name',
+    //             't.username as teacher_name'
+    //         )
+    //         ->first();
+
+    //     if (!$student) {
+    //         return response()->json(['message' => 'Student not found'], 404);
+    //     }
+
+    //     // Fetch attendance logs for this student
+    //     $attendanceLogs = DB::table('attendance as a')
+    //         ->where('a.student_id', $id)
+    //         ->leftJoin('manage_classes as c', 'c.id', '=', 'a.class_id')
+    //         ->select(
+    //             'a.id as attendance_id',
+    //             'a.attendance_date',
+    //             'a.status',
+    //             'c.class_name'
+    //         );
+    //         // ->orderBy('a.attendance_date', 'desc')
+    //         // ->get();
+    //     // NEW: optional date range filter (used by teacher/student personal reports)
+    //     $startDate = $request->query('start_date');
+    //     $endDate   = $request->query('end_date');
+    //     if ($startDate && $endDate) {
+    //         $logsQuery->whereBetween('a.attendance_date', [$startDate, $endDate]);
+    //     }
+
+    //     $attendanceLogs = $logsQuery->orderBy('a.attendance_date', 'desc')->get();
+    //     $totalClasses = $attendanceLogs->count();
+    //     $presentCount = $attendanceLogs->where('status', 'present')->count();
+    //     $absentCount  = $attendanceLogs->where('status', 'absent')->count();
+    //     $lateCount    = $attendanceLogs->where('status', 'late')->count();
+
+    //     // Calculate attendance percentage (present + late counts as attended)
+    //     $attendedCount = $presentCount + $lateCount;
+    //     $attendancePercentage = $totalClasses > 0 ? round(($attendedCount / $totalClasses) * 100, 1) : 0.0;
+
+    //     $records = [];
+    //     foreach ($attendanceLogs as $log) {
+    //         $remarks = '-';
+    //         if ($log->status === 'present') {
+    //             $remarks = 'On Time';
+    //         } elseif ($log->status === 'late') {
+    //             $remarks = 'Late';
+    //         } elseif ($log->status === 'absent') {
+    //             $remarks = 'Absent';
+    //         }
+
+    //         // Check if there is an audit log for this attendance record
+    //         $audit = DB::table('attendance_audit_logs')
+    //             ->where('attendance_id', $log->attendance_id)
+    //             ->orderBy('created_at', 'desc')
+    //             ->first();
+
+    //         $auditData = null;
+    //         if ($audit) {
+    //             $auditData = [
+    //                 'admin_name'      => $audit->admin_name,
+    //                 'original_status' => ucfirst($audit->original_status),
+    //                 'updated_status'  => ucfirst($audit->updated_status),
+    //                 'edited_at'       => Carbon::parse($audit->created_at)->toDateTimeString(),
+    //             ];
+    //             $remarks = 'Edited by ' . $audit->admin_name;
+    //         }
+
+    //         $records[] = [
+    //             'id'        => $log->attendance_id,
+    //             'date'      => $log->attendance_date,
+    //             'status'    => ucfirst($log->status),
+    //             'subject'   => $log->class_name ?? 'Class',
+    //             'remarks'   => $remarks,
+    //             'audit_log' => $auditData,
+    //         ];
+    //     }
+
+    //     return response()->json([
+    //         'student_details' => [
+    //             'full_name'    => $student->student_name,
+    //             'roll_number'  => $student->roll_no ?? '-',
+    //             'class'        => $student->class_name ?? '-',
+    //             'teacher_name' => $student->teacher_name ?? 'Not Assigned',
+    //         ],
+    //         'summary' => [
+    //             'total_classes'         => $totalClasses,
+    //             'present_count'         => $presentCount,
+    //             'absent_count'          => $absentCount,
+    //             'late_count'            => $lateCount,
+    //             'attendance_percentage' => $attendancePercentage,
+    //         ],
+    //         'records' => $records,
+    //     ]);
+    // }
+    // GET /api/admin/reports/student/{id}
+public function getStudentDetailReport(Request $request, $id)
+{
+    // Get student
+    $student = DB::table('users as s')
+        ->where('s.id', $id)
+        ->where('s.role', 'student')
+        ->leftJoin('users as t', 't.id', '=', 's.teacher_id')
+        ->select(
+            's.id as student_id',
+            's.username as student_name',
+            's.roll_no',
+            's.class as class_name',
+            't.username as teacher_name'
+        )
+        ->first();
+
+    if (!$student) {
+        return response()->json([
+            'message' => 'Student not found'
+        ], 404);
+    }
+
+    // Build attendance query
+    $logsQuery = DB::table('attendance as a')
+        ->where('a.student_id', $id)
+        ->leftJoin('manage_classes as c', 'c.id', '=', 'a.class_id')
+        ->select(
+            'a.id as attendance_id',
+            'a.attendance_date',
+            'a.status',
+            'c.class_name'
+        );
+
+    // Optional date range filter
+    $startDate = $request->query('start_date');
+    $endDate   = $request->query('end_date');
+
+    if ($startDate && $endDate) {
+        $logsQuery->whereBetween('a.attendance_date', [
+            $startDate,
+            $endDate
+        ]);
+    } elseif ($startDate) {
+        $logsQuery->whereDate('a.attendance_date', '>=', $startDate);
+    } elseif ($endDate) {
+        $logsQuery->whereDate('a.attendance_date', '<=', $endDate);
+    }
+
+    // Get attendance records
+    $attendanceLogs = $logsQuery
+        ->orderBy('a.attendance_date', 'desc')
+        ->get();
+
+    // Calculate summary
+    $totalClasses = $attendanceLogs->count();
+
+    $presentCount = $attendanceLogs
+        ->where('status', 'present')
+        ->count();
+
+    $absentCount = $attendanceLogs
+        ->where('status', 'absent')
+        ->count();
+
+    $lateCount = $attendanceLogs
+        ->where('status', 'late')
+        ->count();
+
+    $attendedCount = $presentCount + $lateCount;
+
+    $attendancePercentage = $totalClasses > 0
+        ? round(($attendedCount / $totalClasses) * 100, 1)
+        : 0.0;
+
+    // Build records
+    $records = [];
+
+    foreach ($attendanceLogs as $log) {
+
+        $remarks = '-';
+
+        if ($log->status === 'present') {
+            $remarks = 'On Time';
+        } elseif ($log->status === 'late') {
+            $remarks = 'Late';
+        } elseif ($log->status === 'absent') {
+            $remarks = 'Absent';
+        }
+
+        // Check audit log
+        $audit = DB::table('attendance_audit_logs')
+            ->where('attendance_id', $log->attendance_id)
+            ->orderBy('created_at', 'desc')
             ->first();
 
-        if (!$student) {
-            return response()->json(['message' => 'Student not found'], 404);
-        }
+        $auditData = null;
 
-        // Fetch attendance logs for this student
-        $attendanceLogs = DB::table('attendance as a')
-            ->where('a.student_id', $id)
-            ->leftJoin('manage_classes as c', 'c.id', '=', 'a.class_id')
-            ->select(
-                'a.id as attendance_id',
-                'a.attendance_date',
-                'a.status',
-                'c.class_name'
-            );
-            // ->orderBy('a.attendance_date', 'desc')
-            // ->get();
-        // NEW: optional date range filter (used by teacher/student personal reports)
-        $startDate = $request->query('start_date');
-        $endDate   = $request->query('end_date');
-        if ($startDate && $endDate) {
-            $logsQuery->whereBetween('a.attendance_date', [$startDate, $endDate]);
-        }
-
-        $attendanceLogs = $logsQuery->orderBy('a.attendance_date', 'desc')->get();
-        $totalClasses = $attendanceLogs->count();
-        $presentCount = $attendanceLogs->where('status', 'present')->count();
-        $absentCount  = $attendanceLogs->where('status', 'absent')->count();
-        $lateCount    = $attendanceLogs->where('status', 'late')->count();
-
-        // Calculate attendance percentage (present + late counts as attended)
-        $attendedCount = $presentCount + $lateCount;
-        $attendancePercentage = $totalClasses > 0 ? round(($attendedCount / $totalClasses) * 100, 1) : 0.0;
-
-        $records = [];
-        foreach ($attendanceLogs as $log) {
-            $remarks = '-';
-            if ($log->status === 'present') {
-                $remarks = 'On Time';
-            } elseif ($log->status === 'late') {
-                $remarks = 'Late';
-            } elseif ($log->status === 'absent') {
-                $remarks = 'Absent';
-            }
-
-            // Check if there is an audit log for this attendance record
-            $audit = DB::table('attendance_audit_logs')
-                ->where('attendance_id', $log->attendance_id)
-                ->orderBy('created_at', 'desc')
-                ->first();
-
-            $auditData = null;
-            if ($audit) {
-                $auditData = [
-                    'admin_name'      => $audit->admin_name,
-                    'original_status' => ucfirst($audit->original_status),
-                    'updated_status'  => ucfirst($audit->updated_status),
-                    'edited_at'       => Carbon::parse($audit->created_at)->toDateTimeString(),
-                ];
-                $remarks = 'Edited by ' . $audit->admin_name;
-            }
-
-            $records[] = [
-                'id'        => $log->attendance_id,
-                'date'      => $log->attendance_date,
-                'status'    => ucfirst($log->status),
-                'subject'   => $log->class_name ?? 'Class',
-                'remarks'   => $remarks,
-                'audit_log' => $auditData,
+        if ($audit) {
+            $auditData = [
+                'admin_name'      => $audit->admin_name,
+                'original_status' => ucfirst($audit->original_status),
+                'updated_status'  => ucfirst($audit->updated_status),
+                'edited_at'       => Carbon::parse(
+                    $audit->created_at
+                )->toDateTimeString(),
             ];
+
+            $remarks = 'Edited by ' . $audit->admin_name;
         }
 
-        return response()->json([
-            'student_details' => [
-                'full_name'    => $student->student_name,
-                'roll_number'  => $student->roll_no ?? '-',
-                'class'        => $student->class_name ?? '-',
-                'teacher_name' => $student->teacher_name ?? 'Not Assigned',
-            ],
-            'summary' => [
-                'total_classes'         => $totalClasses,
-                'present_count'         => $presentCount,
-                'absent_count'          => $absentCount,
-                'late_count'            => $lateCount,
-                'attendance_percentage' => $attendancePercentage,
-            ],
-            'records' => $records,
-        ]);
+        $records[] = [
+            'id'        => $log->attendance_id,
+            'date'      => $log->attendance_date,
+            'status'    => ucfirst($log->status),
+            'subject'   => $log->class_name ?? 'Class',
+            'remarks'   => $remarks,
+            'audit_log' => $auditData,
+        ];
     }
+
+    return response()->json([
+        'student_details' => [
+            'full_name'   => $student->student_name,
+            'roll_number' => $student->roll_no ?? '-',
+            'class'       => $student->class_name ?? '-',
+            'teacher_name' => $student->teacher_name ?? 'Not Assigned',
+        ],
+
+        'summary' => [
+            'total_classes'         => $totalClasses,
+            'present_count'         => $presentCount,
+            'absent_count'          => $absentCount,
+            'late_count'            => $lateCount,
+            'attendance_percentage' => $attendancePercentage,
+        ],
+
+        'records' => $records,
+    ]);
+}
 
     // PUT /api/admin/reports/attendance/{id}
     public function updateAttendance(Request $request, $id)

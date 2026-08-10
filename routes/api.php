@@ -17,6 +17,10 @@ use App\Http\Controllers\TeacherProfileController;
 use App\Http\Controllers\ConfirmationController; 
 use App\Http\Controllers\AdminReportController;
 use App\Http\Controllers\AdminReportExportController;
+use App\Http\Controllers\TeacherReportController;
+use App\Http\Controllers\TeacherReportExportController;
+use App\Http\Controllers\StudentReportController;
+use App\Http\Controllers\StudentReportExportController;
 
 // PUBLIC ROUTES
 Route::post("/login", [UserController::class, "login"])->name('login');
@@ -184,4 +188,21 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
     });
 
+    // Teacher reports — scoped to teacher's own students only (enforced server-side)
+    Route::middleware(['role:teacher'])->prefix('teacher/reports')->group(function () {
+        Route::get('stats',                     [TeacherReportController::class, 'getMyStats']);
+        Route::get('students',                  [TeacherReportController::class, 'getMyStudents']);
+        Route::get('student/{id}',               [TeacherReportController::class, 'getStudentDetailReport']);
+        Route::get('export/pdf',                 [TeacherReportExportController::class, 'exportClassPdf']);
+        Route::get('export/excel',                [TeacherReportExportController::class, 'exportClassExcel']);
+        Route::get('student/{id}/export/pdf',      [TeacherReportExportController::class, 'exportStudentPdf']);
+        Route::get('student/{id}/export/excel',    [TeacherReportExportController::class, 'exportStudentExcel']);
+    });
+
+    // Student reports — scoped to authenticated student's own record only
+    Route::middleware(['role:student'])->prefix('student/reports')->group(function () {
+        Route::get('my-report',    [StudentReportController::class, 'getMyReport']);
+        Route::get('export/pdf',   [StudentReportExportController::class, 'exportMyPdf']);
+        Route::get('export/excel', [StudentReportExportController::class, 'exportMyExcel']);
+    });
 });
