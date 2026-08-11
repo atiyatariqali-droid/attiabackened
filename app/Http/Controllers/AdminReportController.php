@@ -443,12 +443,7 @@ public function getStudentDetailReport(Request $request, $id)
             $startDate,
             $endDate
         ]);
-    } elseif ($startDate) {
-        $logsQuery->whereDate('a.attendance_date', '>=', $startDate);
-    } elseif ($endDate) {
-        $logsQuery->whereDate('a.attendance_date', '<=', $endDate);
-    }
-
+    } 
     // Get attendance records
     $attendanceLogs = $logsQuery
         ->orderBy('a.attendance_date', 'desc')
