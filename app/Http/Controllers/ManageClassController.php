@@ -44,6 +44,7 @@ class ManageClassController extends Controller
             'name' => 'required',
             'teacher_id' => 'nullable|integer|exists:users,id',
             'class_name' => 'required',
+            'subject' => 'nullable|string', // NEW
             'students_count' => 'required|integer',
             'status' => 'required'
         ]);
@@ -52,6 +53,7 @@ class ManageClassController extends Controller
         $manageClass->name = $request->name;
         $manageClass->teacher_id = $request->teacher_id;
         $manageClass->class_name = $request->class_name;
+        $manageClass->subject = $request->subject; // NEW
         $manageClass->students_count = $request->students_count;
         $manageClass->status = $request->status;
 
@@ -110,6 +112,7 @@ class ManageClassController extends Controller
         $manageClass->name = $request->name;
         $manageClass->teacher_id = $request->teacher_id;
         $manageClass->class_name = $request->class_name;
+        $manageClass->subject = $request->subject; // NEW
         $manageClass->students_count = $request->students_count;
         $manageClass->status = $request->status;
 
