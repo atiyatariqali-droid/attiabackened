@@ -43,6 +43,12 @@ class SystemSettings extends Seeder
                 'description' => 'School Longitude',
                 'type' => 'decimal',
             ],
+            [
+                'key' => 'parent_verification_mode',
+                'value' => 'false',
+                'description' => 'Parent Verification Mode (Increases student response time to 24 hours)',
+                'type' => 'boolean',
+            ],
         ];
 
         foreach ($settings as $setting) {

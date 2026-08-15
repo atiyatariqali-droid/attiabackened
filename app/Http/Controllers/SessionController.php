@@ -289,28 +289,70 @@ if (!$teacher) {
 public function reportDashboard(Request $request)
 {
     $today = Carbon::today();
+    $user = $request->user();
+    $isTeacher = $user && $user->role === 'teacher';
+    $teacherId = $user ? $user->id : null;
 
     // Stats
-    $totalSessions = Session::count();
+    $totalSessionsQuery = Session::query();
+    if ($isTeacher) {
+        $totalSessionsQuery->where('teacher_id', $teacherId);
+    }
+    $totalSessions = $totalSessionsQuery->count();
 
-    $activeSessToday = Session::where('status', 'active')
-        ->whereDate('created_at', $today)
-        ->count();
+    $activeSessTodayQuery = Session::where('status', 'active')
+        ->whereDate('created_at', $today);
+    if ($isTeacher) {
+        $activeSessTodayQuery->where('teacher_id', $teacherId);
+    }
+    $activeSessToday = $activeSessTodayQuery->count();
 
-    $totalPresent = \App\Models\Attendance::where('status', 'present')->count();
+    $totalPresentQuery = \App\Models\Attendance::where('status', 'present');
+    if ($isTeacher) {
+        $totalPresentQuery->whereExists(function($q) use ($teacherId) {
+            $q->select(\DB::raw(1))
+              ->from('attendance_sessions')
+              ->whereRaw('attendance_sessions.id = attendance.session_id')
+              ->where('attendance_sessions.teacher_id', $teacherId);
+        });
+    }
+    $totalPresent = $totalPresentQuery->count();
 
     // Flagged = sessions ended in under 2 minutes (suspicious short sessions)
-    $flagged = Session::whereNotNull('end_time')
-        ->whereRaw('TIMESTAMPDIFF(SECOND, start_time, end_time) < 120')
-        ->count();
+    $flaggedQuery = Session::whereNotNull('end_time')
+        ->whereRaw('TIMESTAMPDIFF(SECOND, start_time, end_time) < 120');
+    if ($isTeacher) {
+        $flaggedQuery->where('teacher_id', $teacherId);
+    }
+    $flagged = $flaggedQuery->count();
 
     // Weekly attendance % (last 7 days)
     $weeklyData = [];
     for ($i = 6; $i >= 0; $i--) {
         $date = Carbon::today()->subDays($i);
-        $present = \App\Models\Attendance::where('status', 'present')
-            ->whereDate('attendance_date', $date)->count();
-        $total = \App\Models\Attendance::whereDate('attendance_date', $date)->count();
+
+        $presentQuery = \App\Models\Attendance::where('status', 'present')
+            ->whereDate('attendance_date', $date);
+        $totalQuery = \App\Models\Attendance::whereDate('attendance_date', $date);
+
+        if ($isTeacher) {
+            $presentQuery->whereExists(function($q) use ($teacherId) {
+                $q->select(\DB::raw(1))
+                  ->from('attendance_sessions')
+                  ->whereRaw('attendance_sessions.id = attendance.session_id')
+                  ->where('attendance_sessions.teacher_id', $teacherId);
+            });
+            $totalQuery->whereExists(function($q) use ($teacherId) {
+                $q->select(\DB::raw(1))
+                  ->from('attendance_sessions')
+                  ->whereRaw('attendance_sessions.id = attendance.session_id')
+                  ->where('attendance_sessions.teacher_id', $teacherId);
+            });
+        }
+
+        $present = $presentQuery->count();
+        $total = $totalQuery->count();
+
         $weeklyData[] = [
             'day'        => $date->format('D'),
             'percentage' => $total > 0 ? round(($present / $total) * 100, 1) : 0,
@@ -318,8 +360,11 @@ public function reportDashboard(Request $request)
     }
 
     // Recent sessions (last 5)
-    $recentSessions = Session::with('teacher')
-        ->orderBy('created_at', 'desc')
+    $recentSessionsQuery = Session::with('teacher');
+    if ($isTeacher) {
+        $recentSessionsQuery->where('teacher_id', $teacherId);
+    }
+    $recentSessions = $recentSessionsQuery->orderBy('created_at', 'desc')
         ->limit(5)
         ->get()
         ->map(fn($s) => [
@@ -333,8 +378,16 @@ public function reportDashboard(Request $request)
         ]);
 
     // Recent attendance (last 5)
-    $recentAttendance = \App\Models\Attendance::with('student')
-        ->orderBy('created_at', 'desc')
+    $recentAttendanceQuery = \App\Models\Attendance::with('student');
+    if ($isTeacher) {
+        $recentAttendanceQuery->whereExists(function($q) use ($teacherId) {
+            $q->select(\DB::raw(1))
+              ->from('attendance_sessions')
+              ->whereRaw('attendance_sessions.id = attendance.session_id')
+              ->where('attendance_sessions.teacher_id', $teacherId);
+        });
+    }
+    $recentAttendance = $recentAttendanceQuery->orderBy('created_at', 'desc')
         ->limit(5)
         ->get()
         ->map(fn($a) => [
@@ -386,7 +439,12 @@ public function attendanceReport(Request $request)
     }
 
     // Teacher sees only their own sessions' attendance
-    if ($request->filled('teacher_id')) {
+    $user = $request->user();
+    if ($user && $user->role === 'teacher') {
+        $query->whereHas('session', function ($q) use ($user) {
+            $q->where('teacher_id', $user->id);
+        });
+    } elseif ($request->filled('teacher_id')) {
         $query->whereHas('session', function ($q) use ($request) {
             $q->where('teacher_id', $request->teacher_id);
         });
@@ -411,10 +469,15 @@ public function attendanceReport(Request $request)
     ]);
 }
 //index method
-public function index()
+public function index(Request $request)
 {
-    $sessions = Session::with(['teacher'])
-        ->latest('created_at')
+    $user = $request->user();
+    $query = Session::with(['teacher']);
+    if ($user && $user->role === 'teacher') {
+        $query->where('teacher_id', $user->id);
+    }
+
+    $sessions = $query->latest('created_at')
         ->get()
         ->map(function ($session) {
             // NEW: attach class_name so the admin UI can display it

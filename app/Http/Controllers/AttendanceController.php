@@ -162,47 +162,60 @@ class AttendanceController extends Controller
             $markedIds[] = (int) $sid;
         }
 
-        // Step 2: restrict verification to BS classes only
-        $isBsClass = $this->isBsClass($classId);
+    // Step 2: Determine target users for verification
+    $total            = count($markedIds);
+    $notifiedStudents = [];
+    $targetUserIds    = [];
+    $message          = 'Please confirm: is your teacher present in the classroom?';
 
-        // Step 3: 20% of Present students rule
-        $total             = count($markedIds); // all marked here are 'present'
-        $notificationCount = $isBsClass ? $this->calculateNotificationCount($total) : 0;
-        $notifiedStudents  = [];
+    if ($total >= 10) {
+        $pool = $markedIds;
+        shuffle($pool);
+        $selected3 = array_slice($pool, 0, 3);
+        $targetUserIds = $selected3;
+    } else {
+        $targetUserIds = \DB::table('users')
+            ->where('role', 'admin')
+            ->pluck('id')
+            ->toArray();
+        $message = "Class session has less than 10 students present. Please verify: is teacher {$session->teacher->username} present in class?";
+    }
 
-        if ($isBsClass && $notificationCount > 0) {
-            $pool = $markedIds;
-            shuffle($pool);
-            $selected = array_slice($pool, 0, min($notificationCount, count($pool)));
+    // Step 3: Create confirmation requests and notifications
+    $parentMode = \DB::table('system_settings')->where('key', 'parent_verification_mode')->value('value');
+    $studentExpiryMinutes = ($parentMode === 'true' || $parentMode === '1' || $parentMode === 1) ? 1440 : 5;
+    $adminExpiryMinutes = 10;
 
-            // Step 4: Sirf in selected Present students ke liye PER-STUDENT confirmation_request + notification
-            foreach ($selected as $chosenId) {
-                // Close any old pending requests for this student (cleanup)
-                \DB::table('confirmation_requests')
-                    ->where('student_id', $chosenId)
-                    ->where('status', 'pending')
-                    ->update(['status' => 'closed']);
+    foreach ($targetUserIds as $chosenId) {
+        // Close any old pending requests for this user (cleanup)
+        \DB::table('confirmation_requests')
+            ->where('student_id', $chosenId)
+            ->where('status', 'pending')
+            ->update(['status' => 'closed']);
 
-                // Per-student confirmation request
-                \DB::table('confirmation_requests')->insert([
-                    'session_id' => $session->id,
-                    'student_id' => $chosenId,
-                    'status'     => 'pending',
-                    'expires_at' => Carbon::now()->addHour(1),
-                    'created_at' => Carbon::now(),
-                    'updated_at' => Carbon::now(),
-                ]);
+        $isStudent = ($total >= 10);
+        $expiryMinutes = $isStudent ? $studentExpiryMinutes : $adminExpiryMinutes;
 
-                // Notification
-                \DB::table('notifications')->insert([
-                    'student_id'  => $chosenId,
-                    'session_id'  => $session->id,
-                    'message'     => 'Please confirm: is your teacher present in the classroom?',
-                    'type'        => 'teacher_verification',
-                    'is_read'     => 0,
-                    'created_at'  => Carbon::now(),
-                    'updated_at'  => Carbon::now(),
-                ]);
+        // Per-user confirmation request
+        \DB::table('confirmation_requests')->insert([
+            'session_id' => $session->id,
+            'student_id' => $chosenId,
+            'status'     => 'pending',
+            'expires_at' => Carbon::now()->addMinutes($expiryMinutes),
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
+        ]);
+
+        // Notification
+        \DB::table('notifications')->insert([
+            'student_id'  => $chosenId,
+            'session_id'  => $session->id,
+            'message'     => $message,
+            'type'        => 'teacher_verification',
+            'is_read'     => 0,
+            'created_at'  => Carbon::now(),
+            'updated_at'  => Carbon::now(),
+        ]);
 
                 $notifiedStudents[] = $chosenId;
             }
@@ -289,49 +302,61 @@ class AttendanceController extends Controller
             $markedIds[] = $studentId;
         }
 
-        // restrict verification to BS classes only
-        $isBsClass = $this->isBsClass($classId);
-
-        // Verification logic — 20% of PRESENT students only (late/absent excluded)
-        $totalPresent      = count($presentOnlyIds);
-        $notificationCount = $isBsClass ? $this->calculateNotificationCount($totalPresent) : 0;
-        $notifiedStudents  = [];
+        // Verification logic
+        $totalPresentOrLate = count($presentOrLateIds);
+        $notifiedStudents = [];
+        $targetUserIds = [];
+        $message = 'Please confirm: is your teacher present in the classroom?';
 
         if ($isBsClass && $totalPresent > 0 && $notificationCount > 0) {
             $pool = $presentOnlyIds;
             shuffle($pool);
-            $selected = array_slice($pool, 0, min($notificationCount, count($pool)));
+            $selected3 = array_slice($pool, 0, 3);
+            $targetUserIds = $selected3;
+        } else {
+            $targetUserIds = \DB::table('users')
+                ->where('role', 'admin')
+                ->pluck('id')
+                ->toArray();
+            $message = "Class session has less than 10 students present. Please verify: is teacher {$session->teacher->username} present in class?";
+        }
 
-            foreach ($selected as $chosenId) {
-                // Close any old pending requests
-                \DB::table('confirmation_requests')
-                    ->where('student_id', $chosenId)
-                    ->where('status', 'pending')
-                    ->update(['status' => 'closed']);
+        $parentMode = \DB::table('system_settings')->where('key', 'parent_verification_mode')->value('value');
+        $studentExpiryMinutes = ($parentMode === 'true' || $parentMode === '1' || $parentMode === 1) ? 1440 : 5;
+        $adminExpiryMinutes = 10;
 
-                // Create new request
-                \DB::table('confirmation_requests')->insert([
-                    'session_id' => $session->id,
-                    'student_id' => $chosenId,
-                    'status'     => 'pending',
-                    'expires_at' => Carbon::now()->addHour(1),
-                    'created_at' => Carbon::now(),
-                    'updated_at' => Carbon::now(),
-                ]);
+        foreach ($targetUserIds as $chosenId) {
+            // Close any old pending requests
+            \DB::table('confirmation_requests')
+                ->where('student_id', $chosenId)
+                ->where('status', 'pending')
+                ->update(['status' => 'closed']);
 
-                // Insert notification
-                \DB::table('notifications')->insert([
-                    'student_id'  => $chosenId,
-                    'session_id'  => $session->id,
-                    'message'     => 'Please confirm: is your teacher present in the classroom?',
-                    'type'        => 'teacher_verification',
-                    'is_read'     => 0,
-                    'created_at'  => Carbon::now(),
-                    'updated_at'  => Carbon::now(),
-                ]);
+            $isStudent = ($totalPresentOrLate >= 10);
+            $expiryMinutes = $isStudent ? $studentExpiryMinutes : $adminExpiryMinutes;
 
-                $notifiedStudents[] = $chosenId;
-            }
+            // Create new request
+            \DB::table('confirmation_requests')->insert([
+                'session_id' => $session->id,
+                'student_id' => $chosenId,
+                'status'     => 'pending',
+                'expires_at' => Carbon::now()->addMinutes($expiryMinutes),
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ]);
+
+            // Insert notification
+            \DB::table('notifications')->insert([
+                'student_id'  => $chosenId,
+                'session_id'  => $session->id,
+                'message'     => $message,
+                'type'        => 'teacher_verification',
+                'is_read'     => 0,
+                'created_at'  => Carbon::now(),
+                'updated_at'  => Carbon::now(),
+            ]);
+
+            $notifiedStudents[] = $chosenId;
         }
 
         return response()->json([
@@ -341,11 +366,9 @@ class AttendanceController extends Controller
             'total_present'        => $totalPresent,
             'notifications_sent'   => count($notifiedStudents),
             'notified_student_ids' => $notifiedStudents,
-            'note'                 => !$isBsClass
-                ? 'Verification not applicable — not a BS class'
-                : ($totalPresent > 0
-                    ? $notificationCount . ' of ' . $totalPresent . ' present students selected for verification (20% rule)'
-                    : 'No present students — no verification sent'),
+            'note'                 => $totalPresentOrLate >= 10
+                ? '3 random students selected for teacher verification'
+                : 'Less than 10 present/late students — verification requests sent to admins',
         ], 201);
     }
 
