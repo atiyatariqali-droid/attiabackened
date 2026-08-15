@@ -9,12 +9,30 @@ use App\Models\ManageClass;
 class StudentsController extends Controller
 {
     // ─────────────────────────────
-    // LIST ALL STUDENTS
+    // LIST ALL STUDENTS (Filtered for Teacher, All for Admin)
     // ─────────────────────────────
-    function list(){
+    function list(Request $request){
+        $user = $request->user();
+
+        $query = Students::where('role', 'student')->where('status', 1);
+
+        if ($user && $user->role === 'teacher') {
+            $teacherClasses = ManageClass::where('teacher_id', $user->id)
+                                          ->pluck('class_name')
+                                          ->filter()
+                                          ->toArray();
+
+            $query->where(function($q) use ($user, $teacherClasses) {
+                $q->where('teacher_id', $user->id);
+                if (!empty($teacherClasses)) {
+                    $q->orWhereIn('class', $teacherClasses);
+                }
+            });
+        }
+
         return response()->json([
             "success" => true,
-            "data" => Students::where('role', 'student')->where('status', 1)->get()
+            "data" => $query->get()
         ]);
     }
 
@@ -260,7 +278,17 @@ if (!$userRole) {
         $query = Students::where('role', 'student')->where('status', 1);
 
         if ($teacher_id && $teacher_id != '0') {
-            $query->where('teacher_id', $teacher_id);
+            $teacherClasses = ManageClass::where('teacher_id', $teacher_id)
+                                          ->pluck('class_name')
+                                          ->filter()
+                                          ->toArray();
+
+            $query->where(function($q) use ($teacher_id, $teacherClasses) {
+                $q->where('teacher_id', $teacher_id);
+                if (!empty($teacherClasses)) {
+                    $q->orWhereIn('class', $teacherClasses);
+                }
+            });
         }
 
         $students = $query->get()->map(function($s) {

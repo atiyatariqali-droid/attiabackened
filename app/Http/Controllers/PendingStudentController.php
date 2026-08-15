@@ -7,12 +7,27 @@ use App\Models\User;
 
 class PendingStudentController extends Controller
 {
-    // List all pending students
-    public function list()
+    // List all pending students (Filtered for Teacher, All for Admin)
+    public function list(Request $request)
     {
-        $pending = User::where('role', 'student')
-            ->where('status', 0) // pending
-            ->orderBy('created_at', 'desc')
+        $user = $request->user();
+        $query = User::where('role', 'student')->where('status', 0); // pending
+
+        if ($user && $user->role === 'teacher') {
+            $teacherClasses = \App\Models\ManageClass::where('teacher_id', $user->id)
+                                                      ->pluck('class_name')
+                                                      ->filter()
+                                                      ->toArray();
+
+            $query->where(function($q) use ($user, $teacherClasses) {
+                $q->where('teacher_id', $user->id);
+                if (!empty($teacherClasses)) {
+                    $q->orWhereIn('class', $teacherClasses);
+                }
+            });
+        }
+
+        $pending = $query->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($s) {
                 $teacher = $s->teacher_id ? User::find($s->teacher_id) : null;
