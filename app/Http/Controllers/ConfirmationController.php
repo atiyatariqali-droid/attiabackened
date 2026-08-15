@@ -24,13 +24,16 @@ class ConfirmationController extends Controller
             ], 400);
         }
         // ── NEW: restrict this notification to BS classes only ──
-    $class = \App\Models\ManageClass::find($session->class_id);
-    if (!$class || stripos(trim($class->class_name), 'BS') !== 0) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Confirmation requests are only enabled for BS classes'
-        ], 403);
-    }
+        $class = \App\Models\ManageClass::find($session->class_id);
+        if ($class && !empty($class->class_name)) {
+            $name = strtoupper(trim($class->class_name));
+            if ((str_contains($name, 'INTER') || str_contains($name, 'FSC') || str_contains($name, 'FA')) && !str_contains($name, 'BS')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Confirmation requests are only enabled for BS classes'
+                ], 403);
+            }
+        }
 
         \DB::table('confirmation_requests')
             ->where('session_id', $request->session_id)
@@ -47,22 +50,15 @@ class ConfirmationController extends Controller
         $targetUserIds = [];
         $message = 'Please confirm: is your teacher present in the classroom?';
 
-        if ($totalPresent >= 10) {
+        if ($totalPresent > 0) {
+            $notificationCount = max(1, (int) round($totalPresent * 0.20));
             $pool = $markedStudentIds;
             shuffle($pool);
-            $selected3 = array_slice($pool, 0, 3);
-            $targetUserIds = $selected3;
-        } else {
-            $targetUserIds = \DB::table('users')
-                ->where('role', 'admin')
-                ->pluck('id')
-                ->toArray();
-            $message = "Class session has less than 10 students present. Please verify: is teacher {$session->teacher->username} present in class?";
+            $targetUserIds = array_slice($pool, 0, min($notificationCount, count($pool)));
         }
 
         $parentMode = \DB::table('system_settings')->where('key', 'parent_verification_mode')->value('value');
         $studentExpiryMinutes = ($parentMode === 'true' || $parentMode === '1' || $parentMode === 1) ? 1440 : 5;
-        $adminExpiryMinutes = 10;
 
         foreach ($targetUserIds as $chosenId) {
             \DB::table('confirmation_requests')
@@ -70,14 +66,11 @@ class ConfirmationController extends Controller
                 ->where('status', 'pending')
                 ->update(['status' => 'closed']);
 
-            $isStudent = ($totalPresent >= 10);
-            $expiryMinutes = $isStudent ? $studentExpiryMinutes : $adminExpiryMinutes;
-
             \DB::table('confirmation_requests')->insert([
                 'session_id' => $request->session_id,
                 'student_id' => $chosenId,
                 'status'     => 'pending',
-                'expires_at' => Carbon::now()->addMinutes($expiryMinutes),
+                'expires_at' => Carbon::now()->addMinutes($studentExpiryMinutes),
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ]);
@@ -95,9 +88,9 @@ class ConfirmationController extends Controller
 
         return response()->json([
             'success'    => true,
-            'message'    => $totalPresent >= 10
-                ? 'Confirmation request sent to students'
-                : 'Less than 10 students - confirmation request sent to admins',
+            'message'    => $totalPresent > 0
+                ? 'Confirmation request sent to student(s)'
+                : 'No present students found to send confirmation request',
         ]);
     }
 
