@@ -97,11 +97,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/notifications/{student_id}',             [AttendanceController::class, 'getNotifications']);
     Route::post('/notifications/{student_id}/mark-read',  [AttendanceController::class, 'markNotificationsRead']);
 
+    
     // Sessions
     Route::post('/create-session',              [SessionController::class, 'createSession']);
     Route::get('/sessions',                     [SessionController::class, 'index']);
     Route::get('/sessions/report',              [SessionController::class, 'sessionReport']);
     Route::get('/sessions/{id}/students',       [SessionController::class, 'getSessionStudents']);
+    Route::get('/sessions/{id}/marked-students', [SessionController::class, 'getMarkedStudents']); // NEW
     Route::put('/sessions/{id}/status',         [SessionController::class, 'updateSessionStatus']);
     Route::post('/sessions/{id}/toggle-status', [SessionController::class, 'toggleStatus']);
     Route::delete('/sessions/{id}',             [SessionController::class, 'deleteSession']);

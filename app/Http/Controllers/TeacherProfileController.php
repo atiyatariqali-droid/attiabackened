@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Teacher\UpdateProfileRequest;
 use App\Http\Requests\Teacher\ChangePasswordRequest;
 use App\Http\Requests\Teacher\ChangeEmailRequest;
+use App\Models\ManageClass;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -19,6 +20,15 @@ class TeacherProfileController extends Controller
     {
         $teacher = $request->user();
 
+        // NEW: fetch all classes assigned to this teacher (with subject + class name)
+        $assignedClasses = ManageClass::where('teacher_id', $teacher->id)
+            ->get()
+            ->map(fn($c) => [
+                'id'         => $c->id,
+                'class_name' => $c->class_name ?? $c->name,
+                'subject'    => $c->subject ?? '',
+            ]);
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -31,6 +41,7 @@ class TeacherProfileController extends Controller
                     ? \Carbon\Carbon::parse($teacher->last_login_at)->format('d M Y, h:i A')
                     : null,
                 'created_at' => $teacher->created_at?->format('d M Y'),
+                'assigned_classes' => $assignedClasses, // NEW
             ],
         ]);
     }

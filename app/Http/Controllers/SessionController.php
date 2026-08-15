@@ -157,6 +157,37 @@ if (!$teacher) {
         ]);
     }
 
+    // NEW: GET ONLY MARKED STUDENTS FOR THIS SESSION (used by MarkAttendanceScreen)
+    public function getMarkedStudents($id)
+    {
+        $session = Session::find($id);
+        if (!$session) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Session not found'
+            ], 404);
+        }
+
+        $records = \App\Models\Attendance::with('student')
+            ->where('session_id', $id)
+            ->get();
+
+        $data = $records->map(function ($a) {
+            $student = $a->student;
+            return [
+                'id'       => $student->id ?? $a->student_id,
+                'username' => $student->username ?? 'Unknown',
+                'roll_no'  => $student->roll_no ?? '',
+                'status'   => $a->status,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data'    => $data,
+        ]);
+    }
+
     public function logout($id)
     {
         return response()->json(['success' => true, 'message' => 'Session logout working', 'id' => $id]);
