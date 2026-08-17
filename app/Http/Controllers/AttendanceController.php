@@ -20,20 +20,12 @@ class AttendanceController extends Controller
             'status'     => 'required|string|in:present,absent,late',
         ]);
 
-        // Find the active class session (Session model points to attendance_sessions table)
         $session = Session::find($request->session_id);
         if (!$session) {
-            // For developer testing / standalone mark attendance screen (which uses hardcoded session_id = 1)
-            // if no session exists, we dynamically seed one at student's coordinates.
-            $session = new Session();
-            $session->id = $request->session_id;
-            $session->teacher_id = 2; // default seeded teacher
-            $session->class_id = 1;   // default seeded class
-            $session->start_time = now();
-            $session->latitude = $request->latitude;
-            $session->longitude = $request->longitude;
-            $session->status = 'active';
-            $session->save();
+            return response()->json([
+                'success' => false,
+                'message' => 'Session not found. Ask your teacher to start the session.'
+            ], 404);
         }
 
         if ($session->status !== 'active') {
@@ -43,7 +35,6 @@ class AttendanceController extends Controller
             ], 400);
         }
 
-        // Location check: must be within classroom radius (default 100m)
         $radius = 100;
         $distance = $this->calculateDistance(
             (float) $session->latitude,
@@ -59,11 +50,9 @@ class AttendanceController extends Controller
             ], 400);
         }
 
-        // Get class_id and date from the session
         $classId = $session->class_id;
         $attendanceDate = Carbon::parse($session->start_time)->toDateString();
 
-        // Check if attendance is already marked for this student in this class on this date
         $exists = Attendance::where('student_id', $request->student_id)
                             ->where('class_id', $classId)
                             ->where('attendance_date', $attendanceDate)
@@ -76,7 +65,6 @@ class AttendanceController extends Controller
             ], 400);
         }
 
-        // Save attendance record to the attendance table
         $attendance = Attendance::create([
             'student_id'      => $request->student_id,
             'class_id'        => $classId,
@@ -105,7 +93,14 @@ class AttendanceController extends Controller
     private function isBsClass($classId)
     {
         $class = ManageClass::find($classId);
-        return $class && stripos(trim($class->class_name), 'BS') === 0;
+        if (!$class || empty($class->class_name)) {
+            return true;
+        }
+        $name = strtoupper(trim($class->class_name));
+        if ((str_contains($name, 'INTER') || str_contains($name, 'FSC') || str_contains($name, 'FA')) && !str_contains($name, 'BS')) {
+            return false;
+        }
+        return true;
     }
 
     private function calculateDistance($lat1, $lon1, $lat2, $lon2)
@@ -124,7 +119,6 @@ class AttendanceController extends Controller
 
         return $earthRadius * $c;
     }
-
 
     // SAVE SESSION STUDENTS (bulk mark present)
     public function saveSessionStudents(Request $request)
@@ -162,60 +156,46 @@ class AttendanceController extends Controller
             $markedIds[] = (int) $sid;
         }
 
-    // Step 2: Determine target users for verification
-    $total            = count($markedIds);
-    $notifiedStudents = [];
-    $targetUserIds    = [];
-    $message          = 'Please confirm: is your teacher present in the classroom?';
+        // Step 2: restrict verification to BS classes only
+        $isBsClass = $this->isBsClass($classId);
 
-    if ($total >= 10) {
-        $pool = $markedIds;
-        shuffle($pool);
-        $selected3 = array_slice($pool, 0, 3);
-        $targetUserIds = $selected3;
-    } else {
-        $targetUserIds = \DB::table('users')
-            ->where('role', 'admin')
-            ->pluck('id')
-            ->toArray();
-        $message = "Class session has less than 10 students present. Please verify: is teacher {$session->teacher->username} present in class?";
-    }
+        // Step 3: 20% of Present students rule
+        $total             = count($markedIds); // all marked here are 'present'
+        $notificationCount = $isBsClass ? $this->calculateNotificationCount($total) : 0;
+        $notifiedStudents  = [];
 
-    // Step 3: Create confirmation requests and notifications
-    $parentMode = \DB::table('system_settings')->where('key', 'parent_verification_mode')->value('value');
-    $studentExpiryMinutes = ($parentMode === 'true' || $parentMode === '1' || $parentMode === 1) ? 1440 : 5;
-    $adminExpiryMinutes = 10;
+        if ($isBsClass && $notificationCount > 0) {
+            $pool = $markedIds;
+            shuffle($pool);
+            $selected = array_slice($pool, 0, min($notificationCount, count($pool)));
 
-    foreach ($targetUserIds as $chosenId) {
-        // Close any old pending requests for this user (cleanup)
-        \DB::table('confirmation_requests')
-            ->where('student_id', $chosenId)
-            ->where('status', 'pending')
-            ->update(['status' => 'closed']);
+            foreach ($selected as $chosenId) {
+                // Close any old pending requests for this student (cleanup)
+                \DB::table('confirmation_requests')
+                    ->where('student_id', $chosenId)
+                    ->where('status', 'pending')
+                    ->update(['status' => 'closed']);
 
-        $isStudent = ($total >= 10);
-        $expiryMinutes = $isStudent ? $studentExpiryMinutes : $adminExpiryMinutes;
+                // Per-student confirmation request
+                \DB::table('confirmation_requests')->insert([
+                    'session_id' => $session->id,
+                    'student_id' => $chosenId,
+                    'status'     => 'pending',
+                    'expires_at' => Carbon::now()->addHour(1),
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ]);
 
-        // Per-user confirmation request
-        \DB::table('confirmation_requests')->insert([
-            'session_id' => $session->id,
-            'student_id' => $chosenId,
-            'status'     => 'pending',
-            'expires_at' => Carbon::now()->addMinutes($expiryMinutes),
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
-        ]);
-
-        // Notification
-        \DB::table('notifications')->insert([
-            'student_id'  => $chosenId,
-            'session_id'  => $session->id,
-            'message'     => $message,
-            'type'        => 'teacher_verification',
-            'is_read'     => 0,
-            'created_at'  => Carbon::now(),
-            'updated_at'  => Carbon::now(),
-        ]);
+                // Notification
+                \DB::table('notifications')->insert([
+                    'student_id'  => $chosenId,
+                    'session_id'  => $session->id,
+                    'message'     => 'Please confirm: is your teacher present in the classroom?',
+                    'type'        => 'teacher_verification',
+                    'is_read'     => 0,
+                    'created_at'  => Carbon::now(),
+                    'updated_at'  => Carbon::now(),
+                ]);
 
                 $notifiedStudents[] = $chosenId;
             }
@@ -257,7 +237,6 @@ class AttendanceController extends Controller
             return response()->json(['success' => false, 'message' => 'Session is not active'], 400);
         }
 
-        // Location check: must be within classroom radius (default 100m)
         $radius = 100;
         $distance = $this->calculateDistance(
             (float) $session->latitude,
@@ -282,7 +261,6 @@ class AttendanceController extends Controller
         foreach ($request->attendance as $att) {
             $studentId = $att['student_id'];
             $status = $att['status'];
-            $reason = $att['reason'] ?? null;
 
             Attendance::updateOrCreate(
                 [
@@ -302,61 +280,45 @@ class AttendanceController extends Controller
             $markedIds[] = $studentId;
         }
 
-        // Verification logic
-        $totalPresentOrLate = count($presentOrLateIds);
-        $notifiedStudents = [];
-        $targetUserIds = [];
-        $message = 'Please confirm: is your teacher present in the classroom?';
+        $isBsClass = $this->isBsClass($classId);
+
+        // Verification logic — 20% of PRESENT students only (late/absent excluded)
+        $totalPresent      = count($presentOnlyIds);
+        $notificationCount = $isBsClass ? $this->calculateNotificationCount($totalPresent) : 0;
+        $notifiedStudents  = [];
 
         if ($isBsClass && $totalPresent > 0 && $notificationCount > 0) {
             $pool = $presentOnlyIds;
             shuffle($pool);
-            $selected3 = array_slice($pool, 0, 3);
-            $targetUserIds = $selected3;
-        } else {
-            $targetUserIds = \DB::table('users')
-                ->where('role', 'admin')
-                ->pluck('id')
-                ->toArray();
-            $message = "Class session has less than 10 students present. Please verify: is teacher {$session->teacher->username} present in class?";
-        }
+            $selected = array_slice($pool, 0, min($notificationCount, count($pool)));
 
-        $parentMode = \DB::table('system_settings')->where('key', 'parent_verification_mode')->value('value');
-        $studentExpiryMinutes = ($parentMode === 'true' || $parentMode === '1' || $parentMode === 1) ? 1440 : 5;
-        $adminExpiryMinutes = 10;
+            foreach ($selected as $chosenId) {
+                \DB::table('confirmation_requests')
+                    ->where('student_id', $chosenId)
+                    ->where('status', 'pending')
+                    ->update(['status' => 'closed']);
 
-        foreach ($targetUserIds as $chosenId) {
-            // Close any old pending requests
-            \DB::table('confirmation_requests')
-                ->where('student_id', $chosenId)
-                ->where('status', 'pending')
-                ->update(['status' => 'closed']);
+                \DB::table('confirmation_requests')->insert([
+                    'session_id' => $session->id,
+                    'student_id' => $chosenId,
+                    'status'     => 'pending',
+                    'expires_at' => Carbon::now()->addHour(1),
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ]);
 
-            $isStudent = ($totalPresentOrLate >= 10);
-            $expiryMinutes = $isStudent ? $studentExpiryMinutes : $adminExpiryMinutes;
+                \DB::table('notifications')->insert([
+                    'student_id'  => $chosenId,
+                    'session_id'  => $session->id,
+                    'message'     => 'Please confirm: is your teacher present in the classroom?',
+                    'type'        => 'teacher_verification',
+                    'is_read'     => 0,
+                    'created_at'  => Carbon::now(),
+                    'updated_at'  => Carbon::now(),
+                ]);
 
-            // Create new request
-            \DB::table('confirmation_requests')->insert([
-                'session_id' => $session->id,
-                'student_id' => $chosenId,
-                'status'     => 'pending',
-                'expires_at' => Carbon::now()->addMinutes($expiryMinutes),
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
-            ]);
-
-            // Insert notification
-            \DB::table('notifications')->insert([
-                'student_id'  => $chosenId,
-                'session_id'  => $session->id,
-                'message'     => $message,
-                'type'        => 'teacher_verification',
-                'is_read'     => 0,
-                'created_at'  => Carbon::now(),
-                'updated_at'  => Carbon::now(),
-            ]);
-
-            $notifiedStudents[] = $chosenId;
+                $notifiedStudents[] = $chosenId;
+            }
         }
 
         return response()->json([
@@ -366,12 +328,13 @@ class AttendanceController extends Controller
             'total_present'        => $totalPresent,
             'notifications_sent'   => count($notifiedStudents),
             'notified_student_ids' => $notifiedStudents,
-            'note'                 => $totalPresentOrLate >= 10
-                ? '3 random students selected for teacher verification'
-                : 'Less than 10 present/late students — verification requests sent to admins',
+            'note'                 => !$isBsClass
+                ? 'Verification not applicable — not a BS class'
+                : ($totalPresent > 0
+                    ? $notificationCount . ' of ' . $totalPresent . ' present students selected for verification (20% rule)'
+                    : 'No present students — no verification sent'),
         ], 201);
     }
-
 
     public function getNotifications($studentId)
     {
@@ -394,19 +357,27 @@ class AttendanceController extends Controller
         ]);
     }
 
+    public function markNotificationsRead($studentId)
+    {
+        \DB::table('notifications')
+            ->where('student_id', $studentId)
+            ->where('is_read', 0)
+            ->update(['is_read' => 1]);
+
+        return response()->json(['success' => true]);
+    }
+
     // STUDENT DASHBOARD SUMMARY (today's status + this month's counts)
     public function getStudentDashboardStatus($studentId)
     {
         $today = Carbon::today()->toDateString();
 
-        // Today's status
         $todayRecord = Attendance::where('student_id', $studentId)
             ->where('attendance_date', $today)
             ->first();
 
         $todayStatus = $todayRecord ? $todayRecord->status : 'not_marked';
 
-        // This month's counts
         $monthStart = Carbon::now()->startOfMonth()->toDateString();
         $monthEnd   = Carbon::now()->endOfMonth()->toDateString();
 
@@ -425,7 +396,7 @@ class AttendanceController extends Controller
 
         return response()->json([
             'success' => true,
-            'today_status' => $todayStatus, // 'present' | 'late' | 'absent' | 'not_marked'
+            'today_status' => $todayStatus,
             'overall_percentage' => $overallPercentage,
             'this_month' => [
                 'present' => $present,
@@ -434,113 +405,4 @@ class AttendanceController extends Controller
             ],
         ]);
     }
-
-    // Naya method — banner dikhne ke BAAD Flutter yeh call karega
-    public function markNotificationsRead($studentId)
-    {
-        \DB::table('notifications')
-            ->where('student_id', $studentId)
-            ->where('is_read', 0)
-            ->update(['is_read' => 1]);
-
-        return response()->json(['success' => true]);
-    }
-
-
-
-    public function sessionReport(Request $request)
-    {
-        $query = Session::with('teacher')->orderBy('created_at', 'desc');
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('id', 'like', "%{$search}%")
-                  ->orWhereHas('teacher', function ($tq) use ($search) {
-                      $tq->where('name', 'like', "%{$search}%");
-                  });
-            });
-        }
-
-        $sessions = $query->get()->map(function ($session) {
-            return [
-                'session_id'       => $session->id,
-                'user_name'        => $session->teacher->username ?? 'Unknown',
-                'current_location' => round($session->latitude, 6) . ', ' . round($session->longitude, 6),
-                'status'           => $session->status,
-                'created_at'       => optional($session->created_at)->format('Y-m-d H:i:s'),
-            ];
-        });
-
-        return response()->json([
-            'success' => true,
-            'count'   => $sessions->count(),
-            'data'    => $sessions,
-        ]);
-    }
-
-    public function getActiveSession($teacherId)
-    {
-        $session = Session::where('teacher_id', $teacherId)
-                          ->where('status', 'active')
-                          ->latest('created_at')
-                          ->first();
-
-        return response()->json([
-            'success' => true,
-            'active'  => $session !== null,
-            'data'    => $session
-        ]);
-    }
-
-    // ─────────────────────────────────────────────
-    // ATTENDANCE REPORT (admin sees all, teacher filtered)
-    // ─────────────────────────────────────────────
-    public function attendanceReport(Request $request)
-    {
-        $query = Attendance::with(['student', 'session.teacher'])
-            ->orderBy('created_at', 'desc');
-
-        if ($request->filled('session_id')) {
-            $query->where('session_id', $request->session_id);
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->filled('date')) {
-            $query->whereDate('attendance_date', $request->date);
-        }
-
-        if ($request->filled('teacher_id')) {
-            $query->whereHas('session', function ($q) use ($request) {
-                $q->where('teacher_id', $request->teacher_id);
-            });
-        }
-
-        $records = $query->get()->map(fn($a) => [
-            'id'              => $a->id,
-            'student_name'    => $a->student->username ?? 'Unknown',
-            'roll_no'         => $a->student->roll_no ?? '-',
-            'class'           => $a->student->class ?? '-',
-            'status'          => $a->status,
-            'attendance_date' => $a->attendance_date,
-            'session_id'      => $a->session_id ?? '-',
-            'teacher_name'    => $a->session?->teacher?->username ?? '-',
-            'marked_at'       => optional($a->created_at)->format('Y-m-d h:i A'),
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'count'   => $records->count(),
-            'data'    => $records,
-        ]);
-    }
-
-
 }

@@ -16,6 +16,7 @@ class SessionController extends Controller
     {
         $request->validate([
             'teacher_id' => 'required|integer',
+            'class_id'   => 'required|exists:manage_classes,id',
             'latitude'   => 'required|numeric',
             'longitude'  => 'required|numeric',
         ]);
@@ -33,14 +34,7 @@ if (!$teacher) {
     ], 404);
 }
 
-        $manageClass = ManageClass::where('name', $teacher->username)->first();
-        if (!$manageClass) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No class assigned to you by admin'
-            ], 400);
-        }
-
+        $manageClass = ManageClass::findOrFail($request->class_id);
         $class_id = $manageClass->id;
 
       //campus location
@@ -59,7 +53,7 @@ if (!$teacher) {
             $campusLng
         );
 
-        // Step 3: Must be within 100 meters
+        // Step 3: Must be within 150 meters
         $allowedRadius = 150; // meters — validation only, not stored in DB
         if ($distance > $allowedRadius) {
             return response()->json([
