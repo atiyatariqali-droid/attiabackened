@@ -95,20 +95,7 @@ class RoleController extends Controller
         ]);
     }
 
-    //Create permission
-    public function createPermission(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|unique:permissions,name'
-        ]);
 
-        $permission = Permission::create(['name' => $request->name]);
-
-        return response()->json([
-            'success' => true,
-            'permission' => $permission
-        ]);
-    } 
 
     //Assign Role to User
     public function assignRole(Request $request)
@@ -127,22 +114,7 @@ class RoleController extends Controller
         ]);
     }                           
 
-    //Assign Permission to Role
-    public function assignPermissionToRole(Request $request)
-    {
-        $request->validate([
-            'role' => 'required',
-            'permission' => 'required'
-        ]);
 
-        $role = Role::findByName($request->role);
-        $role->givePermissionTo($request->permission);
-
-        return response()->json([
-            'success' => true,
-            'msg' => 'Permission assigned to role'
-        ]);
-    }
     
     //Check Role / Permission (important for auth)
     public function checkAccess(Request $request)
