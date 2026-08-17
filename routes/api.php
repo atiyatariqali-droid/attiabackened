@@ -308,11 +308,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/notifications/{student_id}',             [AttendanceController::class, 'getNotifications']);
         Route::post('/notifications/{student_id}/mark-read',  [AttendanceController::class, 'markNotificationsRead']);
     });
-    
-
-
-
-
 
 
 });
