@@ -35,6 +35,10 @@ class AttendanceController extends Controller
             ], 400);
         }
 
+<<<<<<< HEAD
+=======
+        // Location check: must be within classroom radius (default 100m)
+>>>>>>> 6b14f76 (refinements)
         $radius = 100;
         $distance = $this->calculateDistance(
             (float) $session->latitude,
@@ -93,6 +97,7 @@ class AttendanceController extends Controller
     private function isBsClass($classId)
     {
         $class = ManageClass::find($classId);
+<<<<<<< HEAD
         if (!$class || empty($class->class_name)) {
             return true;
         }
@@ -101,6 +106,9 @@ class AttendanceController extends Controller
             return false;
         }
         return true;
+=======
+        return $class && stripos(trim($class->class_name), 'BS') === 0;
+>>>>>>> 6b14f76 (refinements)
     }
 
     private function calculateDistance($lat1, $lon1, $lat2, $lon2)
@@ -119,6 +127,10 @@ class AttendanceController extends Controller
 
         return $earthRadius * $c;
     }
+<<<<<<< HEAD
+=======
+
+>>>>>>> 6b14f76 (refinements)
 
     // SAVE SESSION STUDENTS (bulk mark present)
     public function saveSessionStudents(Request $request)
@@ -169,6 +181,10 @@ class AttendanceController extends Controller
             shuffle($pool);
             $selected = array_slice($pool, 0, min($notificationCount, count($pool)));
 
+<<<<<<< HEAD
+=======
+            // Step 4: Sirf in selected Present students ke liye PER-STUDENT confirmation_request + notification
+>>>>>>> 6b14f76 (refinements)
             foreach ($selected as $chosenId) {
                 // Close any old pending requests for this student (cleanup)
                 \DB::table('confirmation_requests')
@@ -237,6 +253,10 @@ class AttendanceController extends Controller
             return response()->json(['success' => false, 'message' => 'Session is not active'], 400);
         }
 
+<<<<<<< HEAD
+=======
+        // Location check: must be within classroom radius (default 100m)
+>>>>>>> 6b14f76 (refinements)
         $radius = 100;
         $distance = $this->calculateDistance(
             (float) $session->latitude,
@@ -280,6 +300,10 @@ class AttendanceController extends Controller
             $markedIds[] = $studentId;
         }
 
+<<<<<<< HEAD
+=======
+        // restrict verification to BS classes only
+>>>>>>> 6b14f76 (refinements)
         $isBsClass = $this->isBsClass($classId);
 
         // Verification logic — 20% of PRESENT students only (late/absent excluded)
@@ -293,6 +317,10 @@ class AttendanceController extends Controller
             $selected = array_slice($pool, 0, min($notificationCount, count($pool)));
 
             foreach ($selected as $chosenId) {
+<<<<<<< HEAD
+=======
+                // Close any old pending requests
+>>>>>>> 6b14f76 (refinements)
                 \DB::table('confirmation_requests')
                     ->where('student_id', $chosenId)
                     ->where('status', 'pending')
@@ -336,7 +364,139 @@ class AttendanceController extends Controller
         ], 201);
     }
 
+<<<<<<< HEAD
     public function getNotifications($studentId)
+=======
+
+    public function getNotifications($studentId)
+    {
+        $notifications = \DB::table('notifications')
+            ->where('student_id', $studentId)
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get();
+
+        $unreadCount = \DB::table('notifications')
+            ->where('student_id', $studentId)
+            ->where('is_read', 0)
+            ->count();
+
+        return response()->json([
+            'success'      => true,
+            'unread_count' => $unreadCount,
+            'count'        => $notifications->count(),
+            'data'         => $notifications,
+        ]);
+    }
+
+    // STUDENT DASHBOARD SUMMARY (today's status + this month's counts)
+    public function getStudentDashboardStatus($studentId)
+    {
+        $today = Carbon::today()->toDateString();
+
+        // Today's status
+        $todayRecord = Attendance::where('student_id', $studentId)
+            ->where('attendance_date', $today)
+            ->first();
+
+        $todayStatus = $todayRecord ? $todayRecord->status : 'not_marked';
+
+        // This month's counts
+        $monthStart = Carbon::now()->startOfMonth()->toDateString();
+        $monthEnd   = Carbon::now()->endOfMonth()->toDateString();
+
+        $monthRecords = Attendance::where('student_id', $studentId)
+            ->whereBetween('attendance_date', [$monthStart, $monthEnd])
+            ->get();
+
+        $present = $monthRecords->where('status', 'present')->count();
+        $late    = $monthRecords->where('status', 'late')->count();
+        $absent  = $monthRecords->where('status', 'absent')->count();
+
+        $totalMarked = $monthRecords->count();
+        $overallPercentage = $totalMarked > 0
+            ? round((($present + $late) / $totalMarked) * 100, 1)
+            : 0;
+
+        return response()->json([
+            'success' => true,
+            'today_status' => $todayStatus, // 'present' | 'late' | 'absent' | 'not_marked'
+            'overall_percentage' => $overallPercentage,
+            'this_month' => [
+                'present' => $present,
+                'late'    => $late,
+                'absent'  => $absent,
+            ],
+        ]);
+    }
+
+    // Naya method — banner dikhne ke BAAD Flutter yeh call karega
+    public function markNotificationsRead($studentId)
+    {
+        \DB::table('notifications')
+            ->where('student_id', $studentId)
+            ->where('is_read', 0)
+            ->update(['is_read' => 1]);
+
+        return response()->json(['success' => true]);
+    }
+
+
+
+    public function sessionReport(Request $request)
+    {
+        $query = Session::with('teacher')->orderBy('created_at', 'desc');
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('id', 'like', "%{$search}%")
+                  ->orWhereHas('teacher', function ($tq) use ($search) {
+                      $tq->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $sessions = $query->get()->map(function ($session) {
+            return [
+                'session_id'       => $session->id,
+                'user_name'        => $session->teacher->username ?? 'Unknown',
+                'current_location' => round($session->latitude, 6) . ', ' . round($session->longitude, 6),
+                'status'           => $session->status,
+                'created_at'       => optional($session->created_at)->format('Y-m-d H:i:s'),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'count'   => $sessions->count(),
+            'data'    => $sessions,
+        ]);
+    }
+
+    public function getActiveSession($teacherId)
+    {
+        $session = Session::where('teacher_id', $teacherId)
+                          ->where('status', 'active')
+                          ->latest('created_at')
+                          ->first();
+
+        return response()->json([
+            'success' => true,
+            'active'  => $session !== null,
+            'data'    => $session
+        ]);
+    }
+
+    // ─────────────────────────────────────────────
+    // ATTENDANCE REPORT (admin sees all, teacher filtered)
+    // ─────────────────────────────────────────────
+    public function attendanceReport(Request $request)
+>>>>>>> 6b14f76 (refinements)
     {
         $notifications = \DB::table('notifications')
             ->where('student_id', $studentId)

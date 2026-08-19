@@ -280,6 +280,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/sessions/{id}/toggle-status', [SessionController::class, 'toggleStatus']);
         Route::delete('/sessions/{id}',             [SessionController::class, 'deleteSession']);
 
+<<<<<<< HEAD
         // Report dashboard
         Route::get('/report/dashboard', [SessionController::class, 'reportDashboard']);
     });
@@ -289,6 +290,20 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Confirmation student-side
         Route::get('/confirmation/pending',   [ConfirmationController::class, 'getPendingConfirmation']);
         Route::post('/confirmation/respond',  [ConfirmationController::class, 'submitResponse']);
+=======
+    // Student profile
+    Route::post('student/profile/change-password', [AdminProfileController::class, 'studentChangePassword']);
+    Route::post('student/logout',                   [AdminProfileController::class, 'logout']);
+// Student dashboard summary
+Route::get('/student/{student_id}/dashboard-status', [AttendanceController::class, 'getStudentDashboardStatus']);
+    // Teacher profile
+    Route::get ('teacher/profile',                 [TeacherProfileController::class, 'show']);
+    Route::put ('teacher/profile',                 [TeacherProfileController::class, 'update']);
+    Route::post('teacher/profile/change-password', [TeacherProfileController::class, 'changePassword']);
+    Route::post('teacher/profile/change-email',    [TeacherProfileController::class, 'changeEmail']);
+    Route::post('teacher/logout',                  [TeacherProfileController::class, 'logout']);
+    Route::post('teacher/logout-all',              [TeacherProfileController::class, 'logoutAll']);
+>>>>>>> 6b14f76 (refinements)
 
         // Student reports
         Route::prefix('student/reports')->group(function () {
