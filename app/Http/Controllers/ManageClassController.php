@@ -41,7 +41,7 @@ class ManageClassController extends Controller
     public function addClass(Request $request)
     {
         $request->validate([
-            'name' => 'required',
+            'name' => 'required|unique:manage_classes,name',
             'teacher_id' => 'nullable|integer|exists:users,id',
             'class_name' => 'required',
             'subject' => 'nullable|string', // NEW
@@ -100,6 +100,15 @@ class ManageClassController extends Controller
     // ─────────────────────────────
     public function updateClass(Request $request, $id)
     {
+        $request->validate([
+            'name' => 'required|unique:manage_classes,name,'.$id,
+            'teacher_id' => 'nullable|integer|exists:users,id',
+            'class_name' => 'required',
+            'subject' => 'nullable|string',
+            'students_count' => 'required|integer',
+            'status' => 'required'
+        ]);
+
         $manageClass = ManageClass::find($id);
 
         if(!$manageClass){
