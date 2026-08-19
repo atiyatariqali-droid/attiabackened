@@ -33,6 +33,29 @@ class StudentsController extends Controller
     }
 
     // ─────────────────────────────
+    // HELPER: Next available roll number (global max + 1, no gap-fill)
+    // ─────────────────────────────
+    private function getNextRollNo()
+    {
+        $max = \DB::table('users')
+            ->whereNotNull('roll_no')
+            ->max(\DB::raw('CAST(roll_no AS UNSIGNED)'));
+
+        return (string) (($max ?? 0) + 1);
+    }
+
+    // ─────────────────────────────
+    // GET NEXT AVAILABLE ROLL NUMBER (for auto-fill on Add Student form)
+    // ─────────────────────────────
+    public function nextRollNo()
+    {
+        return response()->json([
+            "success" => true,
+            "next_roll_no" => $this->getNextRollNo()
+        ]);
+    }
+
+    // ─────────────────────────────
     // ADD STUDENT
     // ─────────────────────────────
     function addStudent(Request $request){
@@ -42,7 +65,9 @@ class StudentsController extends Controller
             'password' => 'required|min:6',
             'phone' => 'nullable',
             'class' => 'nullable|string',
-            'roll_no' => 'nullable|string',
+            'roll_no' => 'nullable|string|unique:users,roll_no',
+        ], [
+            'roll_no.unique' => 'This roll number already exists, please assign a unique number',
         ]);
 
         $user = $request->user();
@@ -61,6 +86,9 @@ if (!$userRole) {
         
         $derivedTeacherId = $this->deriveTeacherIdFromClass($request->class);
 
+        // Auto-assign roll_no agar frontend se nahi bheja gaya (max+1, global)
+        $rollNo = $request->filled('roll_no') ? $request->roll_no : $this->getNextRollNo();
+
         $student = new Students();
         $student->username = $request->username;
         $student->email = $request->email;
@@ -69,14 +97,25 @@ if (!$userRole) {
         $student->role = 'student';
         $student->status = $status;
         $student->class = $request->class;
-        $student->roll_no = $request->roll_no;
+        $student->roll_no = $rollNo;
         $student->teacher_id = ($userRole === 'teacher') ? $request->user()->id : $derivedTeacherId;
 
-        if($student->save()){
-            return response()->json([
-                "success" => true,
-                "message" => $status === 1 ? "Student added successfully" : "Student submitted for approval"
-            ]);
+        try {
+            if($student->save()){
+                return response()->json([
+                    "success" => true,
+                    "message" => $status === 1 ? "Student added successfully" : "Student submitted for approval"
+                ]);
+            }
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Race-condition fallback: DB unique constraint hit ho gaya
+            if ((int) $e->getCode() === 23000) {
+                return response()->json([
+                    "success" => false,
+                    "message" => "This roll number already exists, please assign a unique number"
+                ], 422);
+            }
+            throw $e;
         }
 
         return response()->json([
@@ -132,7 +171,9 @@ if (!$userRole) {
             'password' => 'nullable|min:6',
             'phone'    => 'nullable',
             'class'    => 'nullable|string',
-            'roll_no'  => 'nullable|string',
+            'roll_no'  => 'nullable|string|unique:users,roll_no,' . $id,
+        ], [
+            'roll_no.unique' => 'This roll number already exists, please assign a unique number',
         ]);
     
         $data = [
@@ -152,7 +193,17 @@ if (!$userRole) {
             $data['password'] = bcrypt($request->password);
         }
     
-        $student->update($data);
+        try {
+            $student->update($data);
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ((int) $e->getCode() === 23000) {
+                return response()->json([
+                    "success" => false,
+                    "message" => "This roll number already exists, please assign a unique number"
+                ], 422);
+            }
+            throw $e;
+        }
     
         return response()->json([
             "success" => true,

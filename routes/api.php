@@ -134,6 +134,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Session creation & management
         Route::post('/create-session',              [SessionController::class, 'createSession']);
         Route::post('/end-session/{id}',            [SessionController::class, 'endSession']);
+        Route::get('/active-session/{teacher_id}',  [SessionController::class, 'getActiveSession']);
         Route::get('/teacher-sessions/{teacher_id}',[SessionController::class, 'getTeacherSessions']);
 
         // Attendance marking
@@ -213,10 +214,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/student/{student_id}/dashboard-status', [AttendanceController::class, 'getStudentDashboardStatus']);
         Route::post('student/profile/change-password', [AdminProfileController::class, 'studentChangePassword']);
         Route::post('student/logout',                   [AdminProfileController::class, 'logout']);
+        Route::get('/students/next-roll-no', [StudentsController::class, 'nextRollNo']);
 
         // Notifications
         Route::get('/notifications/{student_id}',             [AttendanceController::class, 'getNotifications']);
         Route::post('/notifications/{student_id}/mark-read',  [AttendanceController::class, 'markNotificationsRead']);
     });
+    
+
 
 });
