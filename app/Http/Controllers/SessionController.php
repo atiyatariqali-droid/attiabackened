@@ -214,7 +214,15 @@ if (!$teacher) {
             'data'    => $sessions
         ]);
     }
-
+      public function getActiveSession($teacherId)
+      {
+        $session=Session::where('teacher_id',$teacherId)->where('status','active')->latest('created_at')->first();
+        return response()->json([
+            'success' => true,
+            'active_session' => $session !==null,
+            'data' =>$session
+        ]);
+      }
     // END SESSION (Mark as inactive)
     public function endSession($id)
     {

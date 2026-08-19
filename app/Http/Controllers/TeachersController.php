@@ -29,9 +29,12 @@ class TeachersController extends Controller
             'username'           => 'required|string|max:255',
             'email'              => 'required|email|unique:users,email',
             'password'           => 'required|min:6',
-            'phone'              => 'nullable|string|max:20',
+            'phone'              => 'required|regex:/^[0-9]{11}$/',
             'device_id' => 'nullable|string|max:255',
             'status'    => 'nullable|in:0,1',   // NEW
+        ], [
+            'phone.required' => 'Please enter the correct number',
+            'phone.regex'    => 'Please enter the correct number',
         ]);
 
         // ✅ FIX 3: Use validated data only — prevents unexpected field injection
@@ -104,9 +107,12 @@ class TeachersController extends Controller
             'username'  => 'required|string|max:255',
             'email'     => 'required|email|unique:users,email,' . $teacher->id,
             'password'  => 'nullable|min:6',
-            'phone'     => 'nullable|string|max:20',
+            'phone'     => 'required|regex:/^[0-9]{11}$/',
             'device_id' => 'nullable|string|max:255',
             'status'    => 'nullable|in:0,1', 
+        ], [
+            'phone.required' => 'Please enter the correct number',
+            'phone.regex'    => 'Please enter the correct number',
         ]);
 
         // ✅ FIX 6: Build update array from validated data only
@@ -187,8 +193,11 @@ class TeachersController extends Controller
             'username'  => 'required|string|max:255',
             'email'     => 'required|email|unique:users,email',
             'password'  => 'required|min:6',
-            'phone'     => 'nullable|string|max:20',
+            'phone'     => 'required|regex:/^[0-9]{11}$/',
             'device_id' => 'required|string|max:255',
+        ], [
+            'phone.required' => 'Please enter the correct number',
+            'phone.regex'    => 'Please enter the correct number',
         ]);
 
         $teacher = new Teachers();
