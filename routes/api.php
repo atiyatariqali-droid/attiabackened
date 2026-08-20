@@ -174,10 +174,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Student read operations
         Route::get("/students",                [StudentsController::class, "list"]);
+        Route::get('/students/next-roll-no', [StudentsController::class, 'nextRollNo']);
         Route::get("/students/{id}",           [StudentsController::class, "editStudent"]);
         Route::get("/search-students/{name}",  [StudentsController::class, "searchStudent"]);
         Route::get("/teacher/{teacher_id}/approved-students", [StudentsController::class, "teacherStudents"]);
-        Route::get('/students/next-roll-no', [StudentsController::class, 'nextRollNo']);
 
         // Session read operations
         Route::get('/sessions',                     [SessionController::class, 'index']);
