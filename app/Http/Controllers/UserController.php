@@ -36,16 +36,18 @@ class UserController extends Controller
     }
 
     // 4. Device ID check (dynamically bind device ID on first login if null)
-    if ($user->device_id) {
-        if ($user->device_id !== $request->device_id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This device is not authorized'
-            ], 403);
+    if ($user->role !== 'student') {
+        if ($user->device_id) {
+            if ($user->device_id !== $request->device_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This device is not authorized'
+                ], 403);
+            }
+        } else {
+            $user->device_id = $request->device_id;
+            $user->save();
         }
-    } else {
-        $user->device_id = $request->device_id;
-        $user->save();
     }
 
     //create token
