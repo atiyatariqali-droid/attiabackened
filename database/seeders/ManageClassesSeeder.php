@@ -17,6 +17,7 @@ class ManageClassesSeeder extends Seeder
             [
                 'name' => 'BSISLAMIYAT-1',
                 'class_name' => 'Dr. Muhammad',
+                'subject' => 'Islamic Studies',
                 'students_count' => 45,
                 'status' => 'active',
                 'created_at' => now(),
@@ -25,6 +26,7 @@ class ManageClassesSeeder extends Seeder
             [
                 'name' => 'BSIT-2',
                 'class_name' => 'Prof. Fatima',
+                'subject' => 'Information Technology',
                 'students_count' => 38,
                 'status' => 'active',
                 'created_at' => now(),
@@ -33,6 +35,7 @@ class ManageClassesSeeder extends Seeder
             [
                 'name' => 'BSENGLISH-3',
                 'class_name' => 'Sir Ali',
+                'subject' => 'English Literature',
                 'students_count' => 30,
                 'status' => 'inactive',
                 'created_at' => now(),
