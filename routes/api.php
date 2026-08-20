@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\TeachersController;
 use App\Http\Controllers\ManageClassController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\RoleController;
+
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\SystemSettingController; 
 use App\Http\Controllers\StudentsController;
@@ -40,7 +40,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
-    Route::get('/check-access', [RoleController::class, 'checkAccess']);
+
 
     // b. Admin-only routes
     Route::middleware(['role:admin'])->group(function () {
@@ -69,13 +69,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post("/pending-students/reject/{id}",  [PendingStudentController::class, "reject"]);
         Route::post("/pending-students/approve-all",  [PendingStudentController::class, "approveAll"]);
 
-        // Roles CRUD
-        Route::get("/roles",         [RoleController::class, "listRoles"]);
-        Route::post("/roles",        [RoleController::class, "createRole"]);
-        Route::get("/roles/{id}",    [RoleController::class, "editRole"]);
-        Route::put("/roles/{id}",    [RoleController::class, "updateRole"]);
-        Route::delete("/roles/{id}", [RoleController::class, "deleteRole"]);
-        Route::post('/assign-role',  [RoleController::class, 'assignRole']);
 
         // Admin profile routes
         Route::get ('admin/profile',                 [AdminProfileController::class, 'show']);
@@ -158,92 +151,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('teacher/logout',                  [TeacherProfileController::class, 'logout']);
         Route::post('teacher/logout-all',              [TeacherProfileController::class, 'logoutAll']);
 
-
-    // Sessions
-    Route::post('/create-session',              [SessionController::class, 'createSession']);
-    Route::get('/sessions',                     [SessionController::class, 'index']);
-    Route::get('/sessions/report',              [SessionController::class, 'sessionReport']);
-    Route::get('/sessions/{id}/students',       [SessionController::class, 'getSessionStudents']);
-    Route::put('/sessions/{id}/status',         [SessionController::class, 'updateSessionStatus']);
-    Route::post('/sessions/{id}/toggle-status', [SessionController::class, 'toggleStatus']);
-    Route::delete('/sessions/{id}',             [SessionController::class, 'deleteSession']);
-    Route::get('/teacher-sessions/{teacher_id}',[SessionController::class, 'getTeacherSessions']);
-    Route::post('/end-session/{id}',            [SessionController::class, 'endSession']);
-
-    // Dashboard / reports
-    Route::get('/report/dashboard', [SessionController::class, 'reportDashboard']);
-
-    // Teacher confirmation flow
-    Route::post('/confirmation/request',  [ConfirmationController::class, 'requestConfirmation']);
-    Route::get('/confirmation/results',   [ConfirmationController::class, 'getResults']);
-    Route::get('/confirmation/pending',   [ConfirmationController::class, 'getPendingConfirmation']);
-    Route::post('/confirmation/respond',  [ConfirmationController::class, 'submitResponse']);
-    Route::get('/confirmation/directory', [ConfirmationController::class, 'getResponseDirectory']);
-
-    // Admin profile
-    Route::get ('admin/profile',                 [AdminProfileController::class, 'show']);
-    Route::put ('admin/profile',                 [AdminProfileController::class, 'update']);
-    Route::post('admin/profile/change-password', [AdminProfileController::class, 'changePassword']);
-    Route::post('admin/profile/change-email',    [AdminProfileController::class, 'changeEmail']);
-    Route::post('admin/logout',                  [AdminProfileController::class, 'logout']);
-    Route::post('admin/logout-all',              [AdminProfileController::class, 'logoutAll']);
-
-    // Student profile
-    Route::post('student/profile/change-password', [AdminProfileController::class, 'studentChangePassword']);
-    Route::post('student/logout',                   [AdminProfileController::class, 'logout']);
-    // Student dashboard summary
-    Route::get('/student/{student_id}/dashboard-status', [AttendanceController::class, 'getStudentDashboardStatus']);
-
-    // Teacher profile
-    Route::get ('teacher/profile',                 [TeacherProfileController::class, 'show']);
-    Route::put ('teacher/profile',                 [TeacherProfileController::class, 'update']);
-    Route::post('teacher/profile/change-password', [TeacherProfileController::class, 'changePassword']);
-    Route::post('teacher/profile/change-email',    [TeacherProfileController::class, 'changeEmail']);
-    Route::post('teacher/logout',                  [TeacherProfileController::class, 'logout']);
-    Route::post('teacher/logout-all',              [TeacherProfileController::class, 'logoutAll']);
-
-   //Admin reports
-   Route::prefix('admin/reports')->group(function () {
-    Route::get('stats',    [AdminReportController::class, 'getStats']);
-    Route::get('chart',    [AdminReportController::class, 'getChartData']);
-    Route::get('students', [AdminReportController::class, 'getStudentsList']);
-    Route::get('classes',  [AdminReportController::class, 'getClasses']);
-    Route::get('teachers', [AdminReportController::class, 'getTeachers']);
-    Route::get('student/{id}', [AdminReportController::class, 'getStudentDetailReport']);
-    Route::put('attendance/{id}', [AdminReportController::class, 'updateAttendance']);
-    Route::get('teachers-summary', [AdminReportController::class, 'getTeachersSummaryReport']);
-    Route::get('classes-summary', [AdminReportController::class, 'getClassesSummaryReport']);
-    Route::get('sessions-summary', [AdminReportController::class, 'getSessionsSummaryReport']);
-    // Export routes
-    Route::get('export/pdf', [AdminReportExportController::class, 'exportPdf']);
-    Route::get('export/excel', [AdminReportExportController::class, 'exportExcel']);
-    Route::get('student/{id}/export/pdf', [AdminReportExportController::class, 'exportStudentPdf']);
-    Route::get('student/{id}/export/excel', [AdminReportExportController::class, 'exportStudentExcel']);
-});
-
-    // FIX 3: Late students route — ab yahan add kiya
-    Route::get('admin/late-students', function () {
-        $late = DB::table('attendance')
-            ->join('attendance_sessions', 'attendance.session_id', '=', 'attendance_sessions.id')
-            ->join('users as students', 'attendance.student_id', '=', 'students.id')
-            ->leftJoin('users as teachers', 'teachers.id', '=', 'attendance_sessions.teacher_id')
-            ->leftJoin('classes', 'classes.teacher_id', '=', 'attendance_sessions.teacher_id')
-            ->where('attendance.status', 'late')
-            ->orderByDesc('attendance_sessions.created_at')
-            ->select(
-                'students.id as student_id',
-                'students.name as student_name',
-                DB::raw('COALESCE(students.roll_number, "-") as roll_no'),
-                DB::raw('COALESCE(classes.class_name, "-") as class_name'),
-                DB::raw('COALESCE(teachers.name, "Not Assigned") as teacher_name'),
-                DB::raw('DATE(attendance_sessions.created_at) as session_date'),
-                DB::raw('TIME_FORMAT(attendance.created_at, "%h:%i %p") as marked_time')
-            )
-            ->get();
-
-        return response()->json(['success' => true, 'data' => $late]);
-    });
-    });
     });
 
     // Teacher reports — scoped to teacher's own students only (enforced server-side)
