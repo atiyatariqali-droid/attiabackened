@@ -177,6 +177,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get("/students/{id}",           [StudentsController::class, "editStudent"]);
         Route::get("/search-students/{name}",  [StudentsController::class, "searchStudent"]);
         Route::get("/teacher/{teacher_id}/approved-students", [StudentsController::class, "teacherStudents"]);
+        Route::get('/students/next-roll-no', [StudentsController::class, 'nextRollNo']);
 
         // Session read operations
         Route::get('/sessions',                     [SessionController::class, 'index']);
@@ -209,7 +210,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/student/{student_id}/dashboard-status', [AttendanceController::class, 'getStudentDashboardStatus']);
         Route::post('student/profile/change-password', [AdminProfileController::class, 'studentChangePassword']);
         Route::post('student/logout',                   [AdminProfileController::class, 'logout']);
-        Route::get('/students/next-roll-no', [StudentsController::class, 'nextRollNo']);
+
 
         // Notifications
         Route::get('/notifications/{student_id}',             [AttendanceController::class, 'getNotifications']);
