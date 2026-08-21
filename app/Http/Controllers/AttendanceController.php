@@ -163,7 +163,9 @@ class AttendanceController extends Controller
         $targetUserIds    = [];
         $message          = 'Please confirm: is your teacher present in the classroom?';
 
-        if ($total >= 10) {
+        $isBsClass = $this->isBsClass($classId);
+
+        if ($total >= 10 && $isBsClass) {
             $pool = $markedIds;
             shuffle($pool);
             $selected3 = array_slice($pool, 0, 3);
@@ -173,7 +175,12 @@ class AttendanceController extends Controller
                 ->where('role', 'admin')
                 ->pluck('id')
                 ->toArray();
-            $message = "Class session has less than 10 students present. Please verify: is teacher {$session->teacher->username} present in class?";
+            
+            if (!$isBsClass) {
+                $message = "Non-BS Class session started. Please verify: is teacher {$session->teacher->username} present in class?";
+            } else {
+                $message = "Class session has less than 10 students present. Please verify: is teacher {$session->teacher->username} present in class?";
+            }
         }
 
         // Step 3: Create confirmation requests and notifications
@@ -299,7 +306,9 @@ class AttendanceController extends Controller
         $targetUserIds = [];
         $message = 'Please confirm: is your teacher present in the classroom?';
 
-        if ($totalPresentOrLate >= 10) {
+        $isBsClass = $this->isBsClass($classId);
+
+        if ($totalPresentOrLate >= 10 && $isBsClass) {
             $pool = $presentOrLateIds;
             shuffle($pool);
             $selected3 = array_slice($pool, 0, 3);
@@ -309,7 +318,12 @@ class AttendanceController extends Controller
                 ->where('role', 'admin')
                 ->pluck('id')
                 ->toArray();
-            $message = "Class session has less than 10 students present. Please verify: is teacher {$session->teacher->username} present in class?";
+            
+            if (!$isBsClass) {
+                $message = "Non-BS Class session started. Please verify: is teacher {$session->teacher->username} present in class?";
+            } else {
+                $message = "Class session has less than 10 students present. Please verify: is teacher {$session->teacher->username} present in class?";
+            }
         }
 
         $parentMode = \DB::table('system_settings')->where('key', 'parent_verification_mode')->value('value');
@@ -490,7 +504,7 @@ class AttendanceController extends Controller
         $query = Attendance::with(['student', 'session.teacher'])
             ->orderBy('attendance_date', 'desc');
 
-        if ($user->hasRole('teacher')) {
+        if ($user->role === 'teacher') {
             $query->whereHas('session', function ($q) use ($user) {
                 $q->where('teacher_id', $user->id);
             });

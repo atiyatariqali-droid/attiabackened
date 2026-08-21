@@ -11,7 +11,7 @@ class TeacherReportController extends Controller
     private function authTeacherId(Request $request)
     {
         $user = $request->user();
-        if (!$user || !$user->hasRole('teacher')) {
+        if (!$user || $user->role !== 'teacher') {
             abort(403, 'Unauthorized Access');
         }
         return $user->id;
@@ -21,9 +21,10 @@ class TeacherReportController extends Controller
     private function assertOwnsStudent($teacherId, $studentId)
     {
         $belongs = DB::table('users')
-            ->where('id', $studentId)
-            ->where('role', 'student')
-            ->where('teacher_id', $teacherId)
+            ->join('manage_classes', 'users.class_id', '=', 'manage_classes.id')
+            ->where('users.id', $studentId)
+            ->where('users.role', 'student')
+            ->where('manage_classes.teacher_id', $teacherId)
             ->exists();
 
         if (!$belongs) {
@@ -59,5 +60,31 @@ class TeacherReportController extends Controller
 
         $admin = new AdminReportController();
         return $admin->getStudentDetailReport($request, $id);
+    }
+
+    // GET /api/teacher/reports/chart
+    public function getChartData(Request $request)
+    {
+        $teacherId = $this->authTeacherId($request);
+        $request->query->set('teacher_id', $teacherId); // force scope
+
+        $admin = new AdminReportController();
+        return $admin->getChartData($request);
+    }
+
+    public function getSessionsSummaryReport(Request $request)
+    {
+        $teacherId = $this->authTeacherId($request);
+        $request->query->set('teacher_id', $teacherId); // force scope
+        $admin = new AdminReportController();
+        return $admin->getSessionsSummaryReport($request);
+    }
+
+    public function getClassesSummaryReport(Request $request)
+    {
+        $teacherId = $this->authTeacherId($request);
+        $request->query->set('teacher_id', $teacherId); // force scope
+        $admin = new AdminReportController();
+        return $admin->getClassesSummaryReport($request);
     }
 }

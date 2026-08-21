@@ -9,6 +9,7 @@ use App\Models\Teachers;
 use App\Models\ManageClass;
 use App\Models\Students;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class SessionController extends Controller
 {
@@ -63,33 +64,36 @@ if (!$teacher) {
             ], 403);
         }
 
-        // Step 4: Check if class already has active session
-        $existing = Session::where('class_id', $class_id)
-                           ->where('status', 'active')
-                           ->first();
+        // Step 4 & 5: Check if class already has active session and create it (in transaction)
+        return DB::transaction(function () use ($class_id, $request) {
+            $existing = Session::where('class_id', $class_id)
+                               ->where('status', 'active')
+                               ->lockForUpdate()
+                               ->first();
 
-        if ($existing) {
+            if ($existing) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This class already has an active session'
+                ], 400);
+            }
+
+            // Step 5: Create session
+            $session = Session::create([
+                'teacher_id' => $request->teacher_id,
+                'class_id'   => $class_id,
+                'start_time' => Carbon::now(),
+                'latitude'   => $request->latitude,
+                'longitude'  => $request->longitude,
+                'status'     => 'active'
+            ]);
+
             return response()->json([
-                'success' => false,
-                'message' => 'This class already has an active session'
-            ], 400);
-        }
-
-        // Step 5: Create session
-        $session = Session::create([
-            'teacher_id' => $request->teacher_id,
-            'class_id'   => $class_id,
-            'start_time' => Carbon::now(),
-            'latitude'   => $request->latitude,
-            'longitude'  => $request->longitude,
-            'status'     => 'active'
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Session created successfully',
-            'data'    => $session
-        ], 201);
+                'success' => true,
+                'message' => 'Session created successfully',
+                'data'    => $session
+            ], 201);
+        });
     }
 
     // Fixed Haversine formula - calculates distance in meters
@@ -142,12 +146,23 @@ if (!$teacher) {
         // Fetch students assigned to this class
         $students = Students::where('role', 'student')
             ->where('status', 1)
-            ->where('class', $className)
+            ->where('class_id', $session->class_id)
             ->get();
+
+        // Fetch existing attendance records for this session
+        $attendances = \App\Models\Attendance::where('session_id', $id)->get()->keyBy('student_id');
+
+        // Attach status to each student
+        $studentsWithStatus = $students->map(function ($student) use ($attendances) {
+            $att = $attendances->get($student->id);
+            $studentArray = $student->toArray();
+            $studentArray['status'] = $att ? $att->status : 'none';
+            return $studentArray;
+        });
 
         return response()->json([
             'success' => true,
-            'data'    => $students
+            'data'    => $studentsWithStatus
         ]);
     }
 

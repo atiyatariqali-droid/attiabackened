@@ -69,8 +69,9 @@ class AdminReportExportController extends Controller
         $student = DB::table('users as s')
             ->where('s.id', $id)
             ->where('s.role', 'student')
-            ->leftJoin('users as t', 't.id', '=', 's.teacher_id')
-            ->select('s.id as student_id', 's.username as student_name', 's.roll_no', 's.class as class_name', 't.username as teacher_name')
+            ->leftJoin('manage_classes as c', 'c.id', '=', 's.class_id')
+            ->leftJoin('users as t', 't.id', '=', 'c.teacher_id')
+            ->select('s.id as student_id', 's.username as student_name', 's.roll_no', 'c.name as class_name', 't.username as teacher_name')
             ->first();
 
         if (!$student) {
@@ -80,7 +81,7 @@ class AdminReportExportController extends Controller
         $logsQuery = DB::table('attendance as a')
             ->where('a.student_id', $id)
             ->leftJoin('manage_classes as c', 'c.id', '=', 'a.class_id')
-            ->select('a.id as attendance_id', 'a.attendance_date', 'a.status', 'c.class_name');
+            ->select('a.id as attendance_id', 'a.attendance_date', 'a.status', 'c.name as class_name');
 
         // NEW: optional date range filter for teacher/student exports
         if ($request) {
@@ -164,7 +165,7 @@ class AdminReportExportController extends Controller
         // Resolve human-readable filter labels
         $className = 'All Classes';
         if ($classId) {
-            $className = DB::table('manage_classes')->where('id', $classId)->value('class_name') ?? 'All Classes';
+            $className = DB::table('manage_classes')->where('id', $classId)->value('name') ?? 'All Classes';
         }
         $teacherName = 'All Faculty';
         if ($teacherId) {
@@ -194,8 +195,13 @@ class AdminReportExportController extends Controller
         $totalSessions = $sessionQuery->count();
 
         $studentCountQuery = DB::table('users')->where('role', 'student');
-        if ($classId && $className !== 'All Classes') $studentCountQuery->where('class', $className);
-        if ($teacherId) $studentCountQuery->where('teacher_id', $teacherId);
+        if ($classId) {
+            $studentCountQuery->where('class_id', $classId);
+        }
+        if ($teacherId) {
+            $teacherClasses = DB::table('manage_classes')->where('teacher_id', $teacherId)->pluck('id');
+            $studentCountQuery->whereIn('class_id', $teacherClasses);
+        }
         if ($studentId) $studentCountQuery->where('id', $studentId);
         if ($studentName) $studentCountQuery->where('username', 'like', "%{$studentName}%");
         $totalStudents = $studentCountQuery->count();
@@ -224,13 +230,14 @@ class AdminReportExportController extends Controller
         // ---- Students list ----
         $studentQuery = DB::table('users as s')
             ->where('s.role', 'student')
-            ->leftJoin('users as t', 't.id', '=', 's.teacher_id')
-            ->select('s.id as student_id', 's.username as student_name', 's.roll_no', 's.class as class_name', 't.username as teacher_name');
+            ->leftJoin('manage_classes as c', 'c.id', '=', 's.class_id')
+            ->leftJoin('users as t', 't.id', '=', 'c.teacher_id')
+            ->select('s.id as student_id', 's.username as student_name', 's.roll_no', 'c.name as class_name', 't.username as teacher_name');
 
-        if ($classId && $className !== 'All Classes') $studentQuery->where('s.class', $className);
+        if ($classId) $studentQuery->where('s.class_id', $classId);
         if ($teacherId) {
             $studentQuery->where(function($q) use ($teacherId) {
-                $q->where('s.teacher_id', $teacherId)
+                $q->where('c.teacher_id', $teacherId)
                   ->orWhereExists(function ($ex) use ($teacherId) {
                       $ex->select(DB::raw(1))
                         ->from('attendance as att')
@@ -247,7 +254,7 @@ class AdminReportExportController extends Controller
             $studentQuery->whereIn('s.id', $ids);
         }
 
-        $students = $studentQuery->orderBy('s.class')->orderBy('s.username')->get();
+        $students = $studentQuery->orderBy('c.name')->orderBy('s.username')->get();
 
         $rows = [];
         foreach ($students as $student) {

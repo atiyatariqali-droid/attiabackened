@@ -9,28 +9,34 @@ use App\Models\ManageClass;
 class StudentsController extends Controller
 {
     // ─────────────────────────────
-    // LIST ALL STUDENTS
+    // LIST ALL STUDENTS (Filtered for Teacher, All for Admin)
     // ─────────────────────────────
-    function list(){
+    function list(Request $request){
+        $user = $request->user();
+
+        $query = Students::where('role', 'student')->where('status', 1);
+
+        if ($user && $user->role === 'teacher') {
+            $teacherClasses = ManageClass::where('teacher_id', $user->id)
+                                          ->pluck('id')
+                                          ->filter()
+                                          ->toArray();
+
+            $query->where(function($q) use ($teacherClasses) {
+                if (!empty($teacherClasses)) {
+                    $q->whereIn('class_id', $teacherClasses);
+                } else {
+                    $q->whereRaw('1 = 0');
+                }
+            });
+        }
+
         return response()->json([
             "success" => true,
-            "data" => Students::where('role', 'student')->where('status', 1)->get()
+            "data" => $query->get()
         ]);
     }
 
-    // ─────────────────────────────
-    // HELPER: Derive the teacher_id assigned to a given class name
-    // ─────────────────────────────
-    //  UPDATED: now reads ManageClass.teacher_id directly (the new,
-
-    private function deriveTeacherIdFromClass(?string $className)
-    {
-        if (!$className) {
-            return null;
-        }
-
-        return ManageClass::where('class_name', $className)->value('teacher_id');
-    }
 
     // ─────────────────────────────
     // HELPER: Next available roll number (global max + 1, no gap-fill)
@@ -65,6 +71,7 @@ class StudentsController extends Controller
             'password' => 'required|min:6',
             'phone' => 'nullable',
             'class' => 'nullable|string',
+            'class_id' => 'nullable|exists:manage_classes,id',
             'roll_no' => 'nullable|string|unique:users,roll_no',
         ], [
             'roll_no.unique' => 'This roll number already exists, please assign a unique number',
@@ -82,9 +89,10 @@ if (!$userRole) {
 }
         $status = ($userRole === 'admin') ? 1 : 0;
 
-     //  FIX: When an admin adds a student, teacher_id was previously
-        
-        $derivedTeacherId = $this->deriveTeacherIdFromClass($request->class);
+        $classId = $request->class_id;
+        if (!$classId && $request->class) {
+            $classId = ManageClass::where('name', $request->class)->value('id');
+        }
 
         // Auto-assign roll_no agar frontend se nahi bheja gaya (max+1, global)
         $rollNo = $request->filled('roll_no') ? $request->roll_no : $this->getNextRollNo();
@@ -96,10 +104,8 @@ if (!$userRole) {
         $student->phone = $request->phone;
         $student->role = 'student';
         $student->status = $status;
-        $student->class = $request->class;
+        $student->class_id = $classId;
         $student->roll_no = $rollNo;
-        $student->teacher_id = ($userRole === 'teacher') ? $request->user()->id : $derivedTeacherId;
-
         try {
             if($student->save()){
                 return response()->json([
@@ -140,7 +146,7 @@ if (!$userRole) {
         $attendances = \DB::table('attendance as a')
             ->where('a.student_id', $id)
             ->leftJoin('manage_classes as c', 'c.id', '=', 'a.class_id')
-            ->select('a.status', 'a.attendance_date', 'a.class_id', 'c.class_name')
+            ->select('a.status', 'a.attendance_date', 'a.class_id', 'c.name as class_name')
             ->get();
 
         $studentData = $student->toArray();
@@ -171,6 +177,7 @@ if (!$userRole) {
             'password' => 'nullable|min:6',
             'phone'    => 'nullable',
             'class'    => 'nullable|string',
+            'class_id' => 'nullable|exists:manage_classes,id',
             'roll_no'  => 'nullable|string|unique:users,roll_no,' . $id,
         ], [
             'roll_no.unique' => 'This roll number already exists, please assign a unique number',
@@ -180,13 +187,15 @@ if (!$userRole) {
             'username' => $request->username,
             'email'    => $request->email,
             'phone'    => $request->phone,
-            'class'    => $request->class,
             'roll_no'  => $request->roll_no,
         ];
 
-        if ($request->filled('class')) {
-            $derivedTeacherId = $this->deriveTeacherIdFromClass($request->class);
-            $data['teacher_id'] = $derivedTeacherId ?? $student->teacher_id;
+        $classId = $request->class_id;
+        if (!$classId && $request->filled('class')) {
+            $classId = ManageClass::where('name', $request->class)->value('id');
+        }
+        if ($classId) {
+            $data['class_id'] = $classId;
         }
     
         if($request->password){
@@ -260,14 +269,25 @@ if (!$userRole) {
         $query = Students::where('role', 'student')->where('status', 1);
 
         if ($teacher_id && $teacher_id != '0') {
-            $query->where('teacher_id', $teacher_id);
+            $teacherClasses = ManageClass::where('teacher_id', $teacher_id)
+                                          ->pluck('id')
+                                          ->filter()
+                                          ->toArray();
+
+            $query->where(function($q) use ($teacherClasses) {
+                if (!empty($teacherClasses)) {
+                    $q->whereIn('class_id', $teacherClasses);
+                } else {
+                    $q->whereRaw('1 = 0');
+                }
+            });
         }
 
         $students = $query->get()->map(function($s) {
             return [
                 'id' => $s->id,
                 'name' => $s->username,
-                'class' => $s->class ?? 'N/A',
+                'class' => $s->class_name ?? 'N/A',
                 'roll_no' => $s->roll_no ?? 'N/A',
                 'student_status' => $s->status == 1 ? 'Active' : 'Pending',
             ];

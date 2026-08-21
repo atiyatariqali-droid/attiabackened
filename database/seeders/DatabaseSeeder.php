@@ -21,11 +21,11 @@ class DatabaseSeeder extends Seeder
         //     'username' => 'admin',
         //     'email' => 'admin@gmail.com',
         // ]);
-       $this->call([
+        $this->call([
+            ManageClassesSeeder::class,
+        ]);
+        $this->call([
             UserSeeder::class,
-       ]); 
-       $this->call([
-          ManageClassesSeeder::class,
         ]);
         $this->call([
             SystemSettings::class

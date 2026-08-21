@@ -8,8 +8,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use Spatie\Permission\Traits\HasRoles;
-
 
 class User extends Authenticatable
 {
@@ -17,7 +15,6 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
     use HasApiTokens;
-    use HasRoles;
     /**
      * The attributes that are mass assignable.
      *
@@ -31,9 +28,8 @@ class User extends Authenticatable
         'latitude',
         'longitude',
         'status',
-        'class',
+        'class_id',
         'roll_no',
-        'teacher_id',
         'phone',
         'device_id',
     ];
@@ -49,6 +45,13 @@ class User extends Authenticatable
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array
+     */
+    protected $appends = ['class', 'class_name'];
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -61,7 +64,31 @@ class User extends Authenticatable
         ];
     }
     protected function redirectTo($request)
-{
-    return null;
-}
+    {
+        return null;
+    }
+
+    /**
+     * Get the class the student belongs to
+     */
+    public function manageClass()
+    {
+        return $this->belongsTo(ManageClass::class, 'class_id');
+    }
+
+    /**
+     * Get the class name for frontend compatibility
+     */
+    public function getClassNameAttribute()
+    {
+        return $this->manageClass ? $this->manageClass->name : null;
+    }
+
+    /**
+     * Get the class name for legacy frontend compatibility which maps json['class']
+     */
+    public function getClassAttribute()
+    {
+        return $this->manageClass ? $this->manageClass->name : null;
+    }
 }

@@ -44,10 +44,12 @@ class AdminReportController extends Controller
         // Total students query
         $studentQuery = DB::table('users')->where('role', 'student');
         if ($classId) {
-            $className = DB::table('manage_classes')->where('id', $classId)->value('class_name');
-            if ($className) $studentQuery->where('class', $className);
+            $studentQuery->where('class_id', $classId);
         }
-        if ($teacherId) $studentQuery->where('teacher_id', $teacherId);
+        if ($teacherId) {
+            $teacherClasses = DB::table('manage_classes')->where('teacher_id', $teacherId)->pluck('id');
+            $studentQuery->whereIn('class_id', $teacherClasses);
+        }
         if ($studentId) $studentQuery->where('id', $studentId);
         if ($studentName) $studentQuery->where('username', 'like', "%{$studentName}%");
         $totalStudents = $studentQuery->count();
@@ -188,22 +190,22 @@ class AdminReportController extends Controller
         // Build student query
         $studentQuery = DB::table('users as s')
             ->where('s.role', 'student')
-            ->leftJoin('users as t', 't.id', '=', 's.teacher_id')
+            ->leftJoin('manage_classes as c', 'c.id', '=', 's.class_id')
+            ->leftJoin('users as t', 't.id', '=', 'c.teacher_id')
             ->select(
                 's.id as student_id',
                 's.username as student_name',
                 's.roll_no',
-                's.class as class_name',
+                'c.name as class_name',
                 't.username as teacher_name'
             );
 
         if ($classId) {
-            $className = DB::table('manage_classes')->where('id', $classId)->value('class_name');
-            if ($className) $studentQuery->where('s.class', $className);
+            $studentQuery->where('s.class_id', $classId);
         }
         if ($teacherId) {
             $studentQuery->where(function($q) use ($teacherId) {
-                $q->where('s.teacher_id', $teacherId)
+                $q->where('c.teacher_id', $teacherId)
                   ->orWhereExists(function ($ex) use ($teacherId) {
                       $ex->select(DB::raw(1))
                         ->from('attendance as att')
@@ -224,7 +226,7 @@ class AdminReportController extends Controller
             $studentQuery->whereIn('s.id', $ids);
         }
 
-        $students = $studentQuery->orderBy('s.class')->orderBy('s.username')->get();
+        $students = $studentQuery->orderBy('c.name')->orderBy('s.username')->get();
 
         $result = [];
         foreach ($students as $student) {
@@ -295,8 +297,8 @@ class AdminReportController extends Controller
     public function getClasses()
     {
         $classes = DB::table('manage_classes')
-            ->select('id', 'class_name')
-            ->orderBy('class_name')
+            ->select('id', 'name as class_name')
+            ->orderBy('name')
             ->get();
         return response()->json(['classes' => $classes]);
     }
@@ -423,12 +425,13 @@ public function getStudentDetailReport(Request $request, $id)
     $student = DB::table('users as s')
         ->where('s.id', $id)
         ->where('s.role', 'student')
-        ->leftJoin('users as t', 't.id', '=', 's.teacher_id')
+        ->leftJoin('manage_classes as c', 'c.id', '=', 's.class_id')
+        ->leftJoin('users as t', 't.id', '=', 'c.teacher_id')
         ->select(
             's.id as student_id',
             's.username as student_name',
             's.roll_no',
-            's.class as class_name',
+            'c.name as class_name',
             't.username as teacher_name'
         )
         ->first();
@@ -447,7 +450,7 @@ public function getStudentDetailReport(Request $request, $id)
             'a.id as attendance_id',
             'a.attendance_date',
             'a.status',
-            'c.class_name'
+            'c.name as class_name'
         );
 
     // Optional date range filter
@@ -618,9 +621,10 @@ public function getStudentDetailReport(Request $request, $id)
                 ->where('teacher_id', $teacher->id)
                 ->count();
 
+            $teacherClasses = DB::table('manage_classes')->where('teacher_id', $teacher->id)->pluck('id');
             $totalStudents = DB::table('users')
                 ->where('role', 'student')
-                ->where('teacher_id', $teacher->id)
+                ->whereIn('class_id', $teacherClasses)
                 ->count();
 
             $attendanceQuery = DB::table('attendance as a')
@@ -653,12 +657,13 @@ public function getStudentDetailReport(Request $request, $id)
     // GET /api/admin/reports/classes-summary
     public function getClassesSummaryReport(Request $request)
     {
-        $query = DB::table('manage_classes');
+        $query = DB::table('manage_classes as c')
+            ->leftJoin('users as t', 't.id', '=', 'c.teacher_id');
         if ($request->filled('teacher_id')) {
-            $query->where('teacher_id', $request->teacher_id);
+            $query->where('c.teacher_id', $request->teacher_id);
         }
         
-        $classes = $query->select('id', 'class_name as class_name', 'name as teacher_username', 'students_count', 'status')
+        $classes = $query->select('c.id', 'c.name as class_name', 't.username as teacher_username', 'c.students_count', 'c.status')
             ->get();
 
         $result = [];
@@ -669,7 +674,7 @@ public function getStudentDetailReport(Request $request, $id)
 
             $totalStudents = DB::table('users')
                 ->where('role', 'student')
-                ->where('class', $class->class_name)
+                ->where('class_id', $class->id)
                 ->count();
 
             $attendanceQuery = DB::table('attendance')
@@ -709,7 +714,7 @@ public function getStudentDetailReport(Request $request, $id)
                 's.created_at',
                 's.status',
                 't.username as teacher_name',
-                'c.class_name as class_name'
+                'c.name as class_name'
             )
             ->orderBy('s.created_at', 'desc');
 

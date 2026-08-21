@@ -10,7 +10,7 @@ class TeacherReportExportController extends AdminReportExportController
     private function authTeacherId(Request $request)
     {
         $user = $request->user();
-        if (!$user || !$user->hasRole('teacher')) {
+        if (!$user || $user->role !== 'teacher') {
             abort(403, 'Unauthorized Access');
         }
         return $user->id;
@@ -19,9 +19,10 @@ class TeacherReportExportController extends AdminReportExportController
     private function assertOwnsStudent($teacherId, $studentId)
     {
         $belongs = DB::table('users')
-            ->where('id', $studentId)
-            ->where('role', 'student')
-            ->where('teacher_id', $teacherId)
+            ->join('manage_classes', 'users.class_id', '=', 'manage_classes.id')
+            ->where('users.id', $studentId)
+            ->where('users.role', 'student')
+            ->where('manage_classes.teacher_id', $teacherId)
             ->exists();
 
         if (!$belongs) {

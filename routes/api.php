@@ -156,8 +156,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Teacher reports — scoped to teacher's own students only (enforced server-side)
     Route::middleware(['role:teacher'])->prefix('teacher/reports')->group(function () {
         Route::get('stats',                     [TeacherReportController::class, 'getMyStats']);
+        Route::get('chart',                     [TeacherReportController::class, 'getChartData']);
         Route::get('students',                  [TeacherReportController::class, 'getMyStudents']);
         Route::get('student/{id}',               [TeacherReportController::class, 'getStudentDetailReport']);
+        Route::get('sessions-summary',          [TeacherReportController::class, 'getSessionsSummaryReport']);
+        Route::get('classes-summary',           [TeacherReportController::class, 'getClassesSummaryReport']);
         Route::get('export/pdf',                 [TeacherReportExportController::class, 'exportClassPdf']);
         Route::get('export/excel',                [TeacherReportExportController::class, 'exportClassExcel']);
         Route::get('student/{id}/export/pdf',      [TeacherReportExportController::class, 'exportStudentPdf']);
