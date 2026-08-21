@@ -15,7 +15,7 @@ class PendingStudentController extends Controller
 
         if ($user && $user->role === 'teacher') {
             $teacherClasses = \App\Models\ManageClass::where('teacher_id', $user->id)
-                                                      ->pluck('class_name')
+                                                      ->pluck('name')
                                                       ->filter()
                                                       ->toArray();
 

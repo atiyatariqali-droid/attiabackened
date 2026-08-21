@@ -504,7 +504,7 @@ class AttendanceController extends Controller
         $query = Attendance::with(['student', 'session.teacher'])
             ->orderBy('attendance_date', 'desc');
 
-        if ($user->hasRole('teacher')) {
+        if ($user->role === 'teacher') {
             $query->whereHas('session', function ($q) use ($user) {
                 $q->where('teacher_id', $user->id);
             });

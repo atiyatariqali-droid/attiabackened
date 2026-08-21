@@ -15,8 +15,26 @@ class Students extends Model
         'phone',
         'role',
         'status',
-        'class',
+        'class_id',
         'roll_no',
-        'teacher_id',
     ];
+
+    protected $with = ['manageClass'];
+
+    protected $appends = ['class', 'class_name'];
+
+    public function manageClass()
+    {
+        return $this->belongsTo(ManageClass::class, 'class_id');
+    }
+
+    public function getClassNameAttribute()
+    {
+        return $this->manageClass ? $this->manageClass->name : null;
+    }
+
+    public function getClassAttribute()
+    {
+        return $this->manageClass ? $this->manageClass->name : null;
+    }
 }

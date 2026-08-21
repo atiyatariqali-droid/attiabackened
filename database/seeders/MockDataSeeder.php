@@ -34,7 +34,7 @@ class MockDataSeeder extends Seeder
             $class = $classes->random();
             $students->push(User::factory()->create([
                 'role' => 'student',
-                'class' => $class->name,
+                'class_id' => $class->id,
             ]));
         }
 
@@ -52,7 +52,7 @@ class MockDataSeeder extends Seeder
         // For each session, find all students in that class, and mark attendance
         foreach ($sessions as $session) {
             $class = ManageClass::find($session->class_id);
-            $classStudents = User::where('role', 'student')->where('class', $class->name)->get();
+            $classStudents = User::where('role', 'student')->where('class_id', $class->id)->get();
 
             foreach ($classStudents as $student) {
                 Attendance::factory()->create([

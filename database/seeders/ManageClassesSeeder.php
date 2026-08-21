@@ -16,7 +16,7 @@ class ManageClassesSeeder extends Seeder
         DB::table('manage_classes')->insert([
             [
                 'name' => 'BSISLAMIYAT-1',
-                'class_name' => 'Dr. Muhammad',
+                'teacher_id' => 2, // irha sanaullah
                 'subject' => 'Islamic Studies',
                 'students_count' => 45,
                 'status' => 'active',
@@ -25,7 +25,7 @@ class ManageClassesSeeder extends Seeder
             ],
             [
                 'name' => 'BSIT-2',
-                'class_name' => 'Prof. Fatima',
+                'teacher_id' => 3, // Miss Amina
                 'subject' => 'Information Technology',
                 'students_count' => 38,
                 'status' => 'active',
@@ -34,7 +34,7 @@ class ManageClassesSeeder extends Seeder
             ],
             [
                 'name' => 'BSENGLISH-3',
-                'class_name' => 'Sir Ali',
+                'teacher_id' => 4, // Sir Usman
                 'subject' => 'English Literature',
                 'students_count' => 30,
                 'status' => 'inactive',

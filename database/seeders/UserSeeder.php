@@ -68,7 +68,7 @@ class UserSeeder extends Seeder
                 'phone'              => '03111234567',
                 'role'               => 'student',
                 'status'             => 1,
-                'class'              => 'Class 5',
+                'class_id'           => 1,
                 'roll_no'            => '1001',
                 'device_id' => null,
             ]
@@ -82,7 +82,7 @@ class UserSeeder extends Seeder
                 'phone'              => '03091234567',
                 'role'               => 'student',
                 'status'             => 1,
-                'class'              => 'Class 5',
+                'class_id'           => 1,
                 'roll_no'            => '1002',
                 'device_id' => null,
             ]
@@ -96,7 +96,7 @@ class UserSeeder extends Seeder
                 'phone'              => '03091934836',
                 'role'               => 'student',
                 'status'             => 1,
-                'class'              => 'Class 5',
+                'class_id'           => 1,
                 'roll_no'            => '1003',
                 'device_id' => null,
             ]
@@ -110,7 +110,7 @@ class UserSeeder extends Seeder
                 'phone'              => '03012378564',
                 'role'               => 'student',
                 'status'             => 1,
-                'class'              => 'Class 6',
+                'class_id'           => 2,
                 'roll_no'            => '2001',            // FIX: missing comma added here
                 'device_id' => null,
             ]
@@ -124,7 +124,7 @@ class UserSeeder extends Seeder
                 'phone'              => '03045623987',
                 'role'               => 'student',
                 'status'             => 1,
-                'class'              => 'Class 6',
+                'class_id'           => 2,
                 'roll_no'            => '2002',
                 'device_id' => null,
             ]
@@ -152,8 +152,28 @@ class UserSeeder extends Seeder
                 'phone'              => '03111234567',
                 'role'               => 'student',
                 'status'             => 1,
-                'device_id' => null,
+                'class_id'           => 1,
+                'roll_no'            => '1004',
+                'device_id'          => null,
             ]
         );
+
+        // DEMO DATA GENERATION: Create 50 students for each class
+        $classes = \App\Models\ManageClass::all();
+        $globalRollNo = 3000; // Start dynamic roll numbers safely above hardcoded ones
+
+        foreach ($classes as $manageClass) {
+            User::factory()->count(50)->create([
+                'class_id' => $manageClass->id,
+                'role' => 'student',
+                'status' => 1,
+                'device_id' => null,
+            ])->each(function ($student) use (&$globalRollNo) {
+                $student->update(['roll_no' => (string) $globalRollNo++]);
+            });
+            
+            // Update the students_count in manage_classes table
+            $manageClass->update(['students_count' => $manageClass->students()->count()]);
+        }
     }
 }

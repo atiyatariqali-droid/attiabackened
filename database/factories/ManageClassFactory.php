@@ -25,7 +25,6 @@ class ManageClassFactory extends Factory
 
         return [
             'name' => $this->faker->randomElement($coursePrefixes) . '-' . $this->faker->numberBetween(1, 8),
-            'class_name' => 'Prof. ' . $this->faker->lastName(),
             'subject' => $this->faker->randomElement($subjects),
             'students_count' => $this->faker->numberBetween(10, 50),
             'status' => $this->faker->randomElement(['active', 'inactive', 'scheduled']),

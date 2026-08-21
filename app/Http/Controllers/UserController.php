@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\User;
 
 use Illuminate\Support\Facades\Hash;
+use App\Models\SystemSetting;
+
 
 class UserController extends Controller
 {
@@ -34,6 +36,40 @@ class UserController extends Controller
             'message' => 'Invalid credentials'
         ], 401);
     }
+
+    if ($user->role === 'student') {
+        if (!$request->filled('latitude') || !$request->filled('longitude')) {
+             return response()->json([
+                 'success' => false,
+                 'message' => 'Location is required for students to login. Please enable GPS permissions.'
+             ], 403);
+        }
+
+        $campusLat = (float) SystemSetting::where('key', 'school_latitude')->value('value');
+        $campusLng = (float) SystemSetting::where('key', 'school_longitude')->value('value');
+
+        if (!$campusLat || !$campusLng) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Campus location not configured in system settings'
+            ], 500);
+        }
+
+        $distance = $this->calculateDistance(
+            (float) $request->latitude,
+            (float) $request->longitude,
+            $campusLat,
+            $campusLng
+        );
+
+        if ($distance > 150) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You must be on campus to login. You are ' . round($distance) . ' meters away.'
+            ], 403);
+        }
+    }
+
 
     // 4. Device ID check (dynamically bind device ID on first login if null)
     if ($user->role !== 'student') {
@@ -64,5 +100,19 @@ class UserController extends Controller
         "role" => $user->role
     ]
     ]);
+    }
+
+    private function calculateDistance($lat1, $lng1, $lat2, $lng2)
+    {
+        $earthRadius = 6371; // KM
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+            cos(deg2rad($lat1)) *
+            cos(deg2rad($lat2)) *
+            sin($dLng / 2) * sin($dLng / 2);
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        $distanceKm = $earthRadius * $c;
+        return round($distanceKm * 1000, 2); // convert km to meters
     }
 }
