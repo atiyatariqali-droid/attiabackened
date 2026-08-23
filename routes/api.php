@@ -58,11 +58,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::put("/classes/{id}",          [ManageClassController::class, "updateClass"]);
         Route::delete("/classes/{id}",       [ManageClassController::class, "deleteClass"]);
 
-        // Student write operations
-        Route::post("/students",               [StudentsController::class, "addStudent"]);
-        Route::put("/students/{id}",           [StudentsController::class, "updateStudent"]);
-        Route::delete("/students/{id}",        [StudentsController::class, "deleteStudent"]);
-
         // Pending students management
         Route::get("/pending-students",               [PendingStudentController::class, "list"]);
         Route::post("/pending-students/approve/{id}", [PendingStudentController::class, "approve"]);
@@ -194,6 +189,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Report dashboard
         Route::get('/report/dashboard', [SessionController::class, 'reportDashboard']);
+
+        // Student write operations
+        Route::post("/students",               [StudentsController::class, "addStudent"]);
+        Route::put("/students/{id}",           [StudentsController::class, "updateStudent"]);
+        Route::delete("/students/{id}",        [StudentsController::class, "deleteStudent"]);
     });
 
     // e. Student-only routes

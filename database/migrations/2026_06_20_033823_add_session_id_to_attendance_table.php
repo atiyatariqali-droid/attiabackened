@@ -9,20 +9,20 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('attendance', function (Blueprint $table) {
-             $table->unsignedBigInteger('session_id')->nullable()->after('id');
+            //  $table->unsignedBigInteger('session_id')->nullable()->after('id');
 
-            $table->foreign('session_id')
-                  ->references('id')
-                  ->on('attendance_sessions')
-                  ->onDelete('set null');
+            // $table->foreign('session_id')
+            //       ->references('id')
+            //       ->on('attendance_sessions')
+            //       ->onDelete('set null');
         });
     }
 
     public function down(): void
     {
         Schema::table('attendance', function (Blueprint $table) {
-            $table->dropForeign(['session_id']);
-            $table->dropColumn('session_id');
+            // $table->dropForeign(['session_id']);
+            // $table->dropColumn('session_id');
         });
     }
 };
