@@ -12,14 +12,14 @@ class ManageClassController extends Controller
     // ─────────────────────────────
     // LIST ALL CLASSES
     // ─────────────────────────────
-    
-    function list(){
+
+    public function list(){
         $classes = ManageClass::with('teacher')->withCount('students')->get();
 
         $classes = $classes->map(function ($class) {
             $class->students_count = $class->students_count ?? 0;
-            $class->teacher_name = $class->teacher->username ?? $class->name;
-            $class->class_name = $class->name; // Support legacy frontend
+            $class->teacher_name = $class->teacher->username ?? '';
+            $class->class_name = $class->name;
             return $class;
         });
 
@@ -36,30 +36,32 @@ class ManageClassController extends Controller
     public function addClass(Request $request)
     {
         $request->validate([
-            'name' => 'required|unique:manage_classes,name',
+            'class_name' => 'required|unique:manage_classes,name',
             'teacher_id' => 'nullable|integer|exists:users,id',
-            'subject' => 'nullable|string', // NEW
-            'status' => 'required'
+            'subject' => 'nullable|string',
+            'status' => 'required|in:active,inactive',
         ]);
 
         $manageClass = new ManageClass();
-        $manageClass->name = $request->name;
+
+        $manageClass->name = $request->class_name;
         $manageClass->teacher_id = $request->teacher_id;
-        $manageClass->subject = $request->subject; // NEW
+        $manageClass->subject = $request->subject;
         $manageClass->students_count = $request->students_count ?? 0;
         $manageClass->status = $request->status;
 
-        if($manageClass->save()){
+        if ($manageClass->save()) {
             return response()->json([
                 "success" => true,
-                "message" => "Class added successfully"
+                "message" => "Class added successfully",
+                "data" => $manageClass
             ]);
         }
 
         return response()->json([
             "success" => false,
             "message" => "Failed to add class"
-        ]);
+        ], 500);
     }
 
     // ─────────────────────────────
@@ -77,7 +79,7 @@ class ManageClassController extends Controller
         }
 
         $manageClass->students_count = $manageClass->students()->count();
-        $manageClass->teacher_name = $manageClass->teacher->username ?? $manageClass->name;
+        $manageClass->teacher_name = $manageClass->teacher->username ?? '';
         $manageClass->class_name = $manageClass->name; // legacy
 
         return response()->json([
@@ -92,40 +94,43 @@ class ManageClassController extends Controller
     public function updateClass(Request $request, $id)
     {
         $request->validate([
-            'name' => 'required|unique:manage_classes,name,'.$id,
+            'class_name' => 'required|unique:manage_classes,name,' . $id,
             'teacher_id' => 'nullable|integer|exists:users,id',
             'subject' => 'nullable|string',
-            'status' => 'required'
+            'status' => 'required|in:active,inactive',
         ]);
 
         $manageClass = ManageClass::find($id);
 
-        if(!$manageClass){
+        if (!$manageClass) {
             return response()->json([
                 "success" => false,
                 "message" => "Class not found"
-            ]);
+            ], 404);
         }
 
-        $manageClass->name = $request->name;
+        $manageClass->name = $request->class_name;
         $manageClass->teacher_id = $request->teacher_id;
-        $manageClass->subject = $request->subject; // NEW
+        $manageClass->subject = $request->subject;
+
         if ($request->has('students_count')) {
             $manageClass->students_count = $request->students_count;
         }
+
         $manageClass->status = $request->status;
 
-        if($manageClass->save()){
+        if ($manageClass->save()) {
             return response()->json([
                 "success" => true,
-                "message" => "Class updated successfully"
+                "message" => "Class updated successfully",
+                "data" => $manageClass
             ]);
         }
 
         return response()->json([
             "success" => false,
             "message" => "Class not updated"
-        ]);
+        ], 500);
     }
 
     // ─────────────────────────────
@@ -153,7 +158,7 @@ class ManageClassController extends Controller
     // ─────────────────────────────
     // SEARCH CLASS
     // ─────────────────────────────
-    function searchClass($name)
+    public function searchClass($name)
     {
         $class = ManageClass::where("name", "like", "%$name%")->get();
 

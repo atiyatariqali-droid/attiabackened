@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\User;
 
 class ManageClass extends Model
 {
@@ -12,10 +13,10 @@ class ManageClass extends Model
 
     protected $fillable = [
         'name',
-        'teacher_id', // NEW: proper foreign key to the assigned teacher
-        'status',
-        'students_count',
+        'teacher_id', //proper foreign key to the assigned teacher
         'subject',
+        'students_count',
+        'status',
     ];
 
     public function teacher()
