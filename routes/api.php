@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\TeachersController;
 use App\Http\Controllers\ManageClassController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\PasswordResetController;
 
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\SystemSettingController; 
@@ -25,6 +26,9 @@ use App\Http\Controllers\TeacherReportExportController;
 // PUBLIC ROUTES
 Route::post("/login", [UserController::class, "login"])->name('login');
 Route::post("/register-teacher", [TeachersController::class, "registerTeacher"]);
+Route::post("/forgot-password", [PasswordResetController::class, "forgotPassword"]);
+Route::post("/verify-otp",      [PasswordResetController::class, "verifyOtp"]);
+Route::post("/reset-password",  [PasswordResetController::class, "resetPassword"]);
 
 Route::get("/test", function () {
     return response()->json([
@@ -57,6 +61,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post("/classes",              [ManageClassController::class, "addClass"]);
         Route::put("/classes/{id}",          [ManageClassController::class, "updateClass"]);
         Route::delete("/classes/{id}",       [ManageClassController::class, "deleteClass"]);
+
+        // Student write operations
+        Route::post("/students",               [StudentsController::class, "addStudent"]);
+        Route::put("/students/{id}",           [StudentsController::class, "updateStudent"]);
+        Route::delete("/students/{id}",        [StudentsController::class, "deleteStudent"]);
 
         // Pending students management
         Route::get("/pending-students",               [PendingStudentController::class, "list"]);
@@ -189,11 +198,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Report dashboard
         Route::get('/report/dashboard', [SessionController::class, 'reportDashboard']);
-
-        // Student write operations
-        Route::post("/students",               [StudentsController::class, "addStudent"]);
-        Route::put("/students/{id}",           [StudentsController::class, "updateStudent"]);
-        Route::delete("/students/{id}",        [StudentsController::class, "deleteStudent"]);
     });
 
     // e. Student-only routes
@@ -213,7 +217,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/student/{student_id}/dashboard-status', [AttendanceController::class, 'getStudentDashboardStatus']);
         Route::post('student/profile/change-password', [AdminProfileController::class, 'studentChangePassword']);
         Route::post('student/logout',                   [AdminProfileController::class, 'logout']);
-
+        Route::get('student/profile',                   [StudentsController::class, 'myProfile']);
 
         // Notifications
         Route::get('/notifications/{student_id}',             [AttendanceController::class, 'getNotifications']);
