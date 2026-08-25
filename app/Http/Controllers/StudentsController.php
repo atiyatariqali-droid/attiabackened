@@ -297,4 +297,36 @@ if (!$userRole) {
             'students' => $students
         ]);
     }
+        // ─────────────────────────────
+    // GET OWN PROFILE (Student — self access only)
+    // ─────────────────────────────
+    public function myProfile(Request $request)
+    {
+        $user = $request->user();
+        $student = Students::where('id', $user->id)->where('role', 'student')->first();
+
+        if (!$student) {
+            return response()->json([
+                "success" => false,
+                "message" => "Student not found"
+            ], 404);
+        }
+
+        $attendances = \DB::table('attendance as a')
+            ->where('a.student_id', $student->id)
+            ->leftJoin('manage_classes as c', 'c.id', '=', 'a.class_id')
+            ->select('a.status', 'a.attendance_date', 'a.class_id', 'c.name as class_name')
+            ->get();
+
+        $studentData = $student->toArray();
+        $studentData['class_name'] = \DB::table('manage_classes')
+            ->where('id', $student->class_id)
+            ->value('class_name');
+        $studentData['attendances'] = $attendances;
+
+        return response()->json([
+            "success" => true,
+            "data" => $studentData
+        ]);
+    }
 }
