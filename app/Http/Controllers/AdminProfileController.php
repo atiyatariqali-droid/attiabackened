@@ -101,7 +101,7 @@ class AdminProfileController extends Controller
 
     /**
      * POST /api/admin/profile/change-email
-     * Verifies current password and checks email uniqueness before updating.
+     * Verifies current email before updating to the new one.
      */
     public function changeEmail(ChangeEmailRequest $request): JsonResponse
     {
@@ -111,12 +111,12 @@ class AdminProfileController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        // Verify current password
-        if (!Hash::check($request->current_password, $admin->password)) {
+        // Verify current email matches what's on record
+        if (strcasecmp($request->current_email, $admin->email) !== 0) {
             return response()->json([
                 'success' => false,
-                'message' => 'Current password is incorrect',
-                'errors'  => ['current_password' => ['Current password is incorrect']],
+                'message' => 'Current email is incorrect',
+                'errors'  => ['current_email' => ['Current email is incorrect']],
             ], 422);
         }
 
