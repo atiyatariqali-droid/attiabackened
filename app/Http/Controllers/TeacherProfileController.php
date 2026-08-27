@@ -93,18 +93,12 @@ class TeacherProfileController extends Controller
 
     /**
      * POST /api/teacher/profile/change-email
+     * FIXED: password check removed — only current_email (must match) + new_email are required now.
+     * ChangeEmailRequest already validates that current_email matches the logged-in teacher's email.
      */
     public function changeEmail(ChangeEmailRequest $request): JsonResponse
     {
         $teacher = $request->user();
-
-        if (!Hash::check($request->current_password, $teacher->password)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Current password is incorrect',
-                'errors'  => ['current_password' => ['Current password is incorrect']],
-            ], 422);
-        }
 
         $teacher->update(['email' => $request->new_email]);
 

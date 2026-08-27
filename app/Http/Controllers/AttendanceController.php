@@ -165,28 +165,19 @@ class AttendanceController extends Controller
 
         $isBsClass = $this->isBsClass($classId);
 
-        if ($total >= 10 && $isBsClass) {
+        // Only BS classes with at least 1 marked student get a verification notification.
+        // Non-BS classes and zero-student cases get NO notification at all.
+        $targetUserIds = [];
+        if ($isBsClass && $total > 0) {
             $pool = $markedIds;
             shuffle($pool);
-            $selected3 = array_slice($pool, 0, 3);
-            $targetUserIds = $selected3;
-        } else {
-            $targetUserIds = \DB::table('users')
-                ->where('role', 'admin')
-                ->pluck('id')
-                ->toArray();
-            
-            if (!$isBsClass) {
-                $message = "Non-BS Class session started. Please verify: is teacher {$session->teacher->username} present in class?";
-            } else {
-                $message = "Class session has less than 10 students present. Please verify: is teacher {$session->teacher->username} present in class?";
-            }
+            $notifyCount   = $this->calculateNotificationCount($total);
+            $targetUserIds = array_slice($pool, 0, $notifyCount);
         }
 
         // Step 3: Create confirmation requests and notifications
         $parentMode = \DB::table('system_settings')->where('key', 'parent_verification_mode')->value('value');
         $studentExpiryMinutes = ($parentMode === 'true' || $parentMode === '1' || $parentMode === 1) ? 1440 : 5;
-        $adminExpiryMinutes = 10;
 
         foreach ($targetUserIds as $chosenId) {
             // Close any old pending requests for this user (cleanup)
@@ -195,8 +186,7 @@ class AttendanceController extends Controller
                 ->where('status', 'pending')
                 ->update(['status' => 'closed']);
 
-            $isStudent = ($total >= 10);
-            $expiryMinutes = $isStudent ? $studentExpiryMinutes : $adminExpiryMinutes;
+            $expiryMinutes = $studentExpiryMinutes;
 
             // Per-user confirmation request
             \DB::table('confirmation_requests')->insert([
@@ -228,9 +218,9 @@ class AttendanceController extends Controller
             'total_marked'         => $total,
             'notifications_sent'   => count($notifiedStudents),
             'notified_student_ids' => $notifiedStudents,
-            'note'                 => $total >= 10
-                ? '3 random students selected for teacher verification'
-                : 'Less than 10 present students — verification requests sent to admins',
+            'note'                 => ($isBsClass && $total > 0)
+                ? count($notifiedStudents) . ' student(s) (20% of present, min 1) selected for teacher verification'
+                : 'No verification notification sent (non-BS class or no students marked)',
         ], 201);
     }
 
@@ -308,27 +298,18 @@ class AttendanceController extends Controller
 
         $isBsClass = $this->isBsClass($classId);
 
-        if ($totalPresentOrLate >= 10 && $isBsClass) {
+        // Only BS classes with at least 1 present/late student get a verification notification.
+        // Non-BS classes and zero-present cases get NO notification at all.
+        $targetUserIds = [];
+        if ($isBsClass && $totalPresentOrLate > 0) {
             $pool = $presentOrLateIds;
             shuffle($pool);
-            $selected3 = array_slice($pool, 0, 3);
-            $targetUserIds = $selected3;
-        } else {
-            $targetUserIds = \DB::table('users')
-                ->where('role', 'admin')
-                ->pluck('id')
-                ->toArray();
-            
-            if (!$isBsClass) {
-                $message = "Non-BS Class session started. Please verify: is teacher {$session->teacher->username} present in class?";
-            } else {
-                $message = "Class session has less than 10 students present. Please verify: is teacher {$session->teacher->username} present in class?";
-            }
+            $notifyCount   = $this->calculateNotificationCount($totalPresentOrLate);
+            $targetUserIds = array_slice($pool, 0, $notifyCount);
         }
 
         $parentMode = \DB::table('system_settings')->where('key', 'parent_verification_mode')->value('value');
         $studentExpiryMinutes = ($parentMode === 'true' || $parentMode === '1' || $parentMode === 1) ? 1440 : 5;
-        $adminExpiryMinutes = 10;
 
         foreach ($targetUserIds as $chosenId) {
             // Close any old pending requests
@@ -337,8 +318,7 @@ class AttendanceController extends Controller
                 ->where('status', 'pending')
                 ->update(['status' => 'closed']);
 
-            $isStudent = ($totalPresentOrLate >= 10);
-            $expiryMinutes = $isStudent ? $studentExpiryMinutes : $adminExpiryMinutes;
+            $expiryMinutes = $studentExpiryMinutes;
 
             // Create new request
             \DB::table('confirmation_requests')->insert([
@@ -371,9 +351,9 @@ class AttendanceController extends Controller
             'total_present'        => $totalPresentOrLate,
             'notifications_sent'   => count($notifiedStudents),
             'notified_student_ids' => $notifiedStudents,
-            'note'                 => $totalPresentOrLate >= 10
-                ? '3 random students selected for teacher verification'
-                : 'Less than 10 present/late students — verification requests sent to admins',
+            'note'                 => ($isBsClass && $totalPresentOrLate > 0)
+                ? count($notifiedStudents) . ' student(s) (20% of present/late, min 1) selected for teacher verification'
+                : 'No verification notification sent (non-BS class or no students present)',
         ], 201);
     }
 

@@ -3,29 +3,55 @@
 namespace App\Http\Requests\Teacher;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class ChangeEmailRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user() !== null;
     }
 
     public function rules(): array
     {
         return [
-            'current_password' => ['required', 'string'],
-            'new_email'        => ['required', 'email', 'unique:users,email'],
+            'current_email' => [
+                'required',
+                'email',
+            ],
+            'new_email' => [
+                'required',
+                'email',
+                'max:255',
+                // Unique across users table, excluding current teacher
+                Rule::unique('users', 'email')->ignore($this->user()->id),
+            ],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'current_password.required' => 'Current password is required',
-            'new_email.required'        => 'New email is required',
-            'new_email.email'           => 'Please enter a valid email address',
-            'new_email.unique'          => 'This email is already in use',
+            'current_email.required' => 'Current email is required.',
+            'current_email.email'    => 'Please enter a valid current email address.',
+            'new_email.required'     => 'New email address is required.',
+            'new_email.email'        => 'Please enter a valid email address.',
+            'new_email.unique'       => 'This email address is already in use.',
         ];
+    }
+
+    /**
+     * Extra check: current_email must actually match the logged-in user's email.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            if ($this->filled('current_email') && $this->user()) {
+                if ($this->input('current_email') !== $this->user()->email) {
+                    $validator->errors()->add('current_email', 'Current email does not match our records.');
+                }
+            }
+        });
     }
 }

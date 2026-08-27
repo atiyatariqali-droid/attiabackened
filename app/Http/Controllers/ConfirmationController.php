@@ -9,6 +9,15 @@ use Carbon\Carbon;
 
 class ConfirmationController extends Controller
 {
+    // Calculate how many present students should receive verification notifications (20% rule)
+    private function calculateNotificationCount($presentCount)
+    {
+        if ($presentCount <= 0) {
+            return 0;
+        }
+        return max(1, (int) round($presentCount * 0.20));
+    }
+
     public function requestConfirmation(Request $request)
     {
         $request->validate([
@@ -47,22 +56,18 @@ class ConfirmationController extends Controller
         $targetUserIds = [];
         $message = 'Please confirm: is your teacher present in the classroom?';
 
-        if ($totalPresent >= 10) {
+        // Only sends a notification if at least 1 student is present/late.
+        // Zero-present sessions get NO notification at all (nothing to verify).
+        $targetUserIds = [];
+        if ($totalPresent > 0) {
             $pool = $markedStudentIds;
             shuffle($pool);
-            $selected3 = array_slice($pool, 0, 3);
-            $targetUserIds = $selected3;
-        } else {
-            $targetUserIds = \DB::table('users')
-                ->where('role', 'admin')
-                ->pluck('id')
-                ->toArray();
-            $message = "Class session has less than 10 students present. Please verify: is teacher {$session->teacher->username} present in class?";
+            $notifyCount   = $this->calculateNotificationCount($totalPresent);
+            $targetUserIds = array_slice($pool, 0, $notifyCount);
         }
 
         $parentMode = \DB::table('system_settings')->where('key', 'parent_verification_mode')->value('value');
         $studentExpiryMinutes = ($parentMode === 'true' || $parentMode === '1' || $parentMode === 1) ? 1440 : 5;
-        $adminExpiryMinutes = 10;
 
         foreach ($targetUserIds as $chosenId) {
             \DB::table('confirmation_requests')
@@ -70,8 +75,7 @@ class ConfirmationController extends Controller
                 ->where('status', 'pending')
                 ->update(['status' => 'closed']);
 
-            $isStudent = ($totalPresent >= 10);
-            $expiryMinutes = $isStudent ? $studentExpiryMinutes : $adminExpiryMinutes;
+            $expiryMinutes = $studentExpiryMinutes;
 
             \DB::table('confirmation_requests')->insert([
                 'session_id' => $request->session_id,
@@ -95,9 +99,9 @@ class ConfirmationController extends Controller
 
         return response()->json([
             'success'    => true,
-            'message'    => $totalPresent >= 10
+            'message'    => $totalPresent > 0
                 ? 'Confirmation request sent to students'
-                : 'Less than 10 students - confirmation request sent to admins',
+                : 'No students present - no confirmation request sent',
         ]);
     }
 

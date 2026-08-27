@@ -319,9 +319,10 @@ if (!$userRole) {
             ->get();
 
         $studentData = $student->toArray();
-        $studentData['class_name'] = \DB::table('manage_classes')
-            ->where('id', $student->class_id)
-            ->value('class_name');
+        // FIXED: removed the raw `manage_classes.class_name` lookup that was here.
+        // It duplicated (and could crash on) the model's own class_name accessor
+        // (Students::getClassNameAttribute(), already appended via $appends),
+        // which was causing this whole endpoint to 500 and return no data to the app.
         $studentData['attendances'] = $attendances;
 
         return response()->json([
