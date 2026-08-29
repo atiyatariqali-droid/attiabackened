@@ -65,7 +65,10 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // FIXED: was hardcoded 'UTC', which made every now()/Carbon::now() call
+    // (session start times, report "generated_at", attendance timestamps)
+    // render 5 hours behind actual Pakistan time. Changed to Asia/Karachi.
+    'timezone' => 'Asia/Karachi',
 
     /*
     |--------------------------------------------------------------------------
