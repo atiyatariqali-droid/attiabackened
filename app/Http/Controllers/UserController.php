@@ -37,6 +37,14 @@ class UserController extends Controller
         ], 401);
     }
 
+    //  teacher account must be approved by admin before login is allowed.
+    if ($user->role === 'teacher' && (int) $user->status !== 1) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Your account is pending admin approval. Please wait until an admin approves your registration.'
+        ], 403);
+    }
+
     if ($user->role === 'student') {
         if (!$request->filled('latitude') || !$request->filled('longitude')) {
              return response()->json([
