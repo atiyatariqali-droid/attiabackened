@@ -327,4 +327,77 @@ class ConfirmationController extends Controller
             'data'             => $directory->values(),
         ]);
     }
+
+    // ── NEW: Admin overview — one row per session that has a confirmation request,
+    // with class/teacher info and yes/no/pending counts, for the admin dashboard ──
+    public function getAdminOverview(Request $request)
+    {
+        $sessionIds = \DB::table('confirmation_requests')
+            ->select('session_id')
+            ->distinct()
+            ->pluck('session_id');
+
+        if ($sessionIds->isEmpty()) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+
+        $overview = [];
+
+        foreach ($sessionIds as $sessionId) {
+            $session = \DB::table('attendance_sessions')->where('id', $sessionId)->first();
+            if (!$session) {
+                continue;
+            }
+
+            $class   = \DB::table('manage_classes')->where('id', $session->class_id)->first();
+            $teacher = \DB::table('users')->where('id', $session->teacher_id)->first();
+
+            $requestIds = \DB::table('confirmation_requests')
+                ->where('session_id', $sessionId)
+                ->pluck('id');
+
+            $responses = \DB::table('confirmation_responses')
+                ->whereIn('request_id', $requestIds)
+                ->get();
+
+            $yesCount       = $responses->where('response', 'yes')->count();
+            $noCount        = $responses->where('response', 'no')->count();
+            $totalSelected  = $requestIds->count();
+            $totalResponded = $responses->count();
+            $pendingCount   = $totalSelected - $totalResponded;
+
+            $verdict = 'Awaiting responses';
+            if ($totalResponded > 0) {
+                $verdict = $yesCount >= $noCount ? 'Teacher Present ✓' : 'Teacher NOT Present ✗';
+            }
+
+            $latestRequest = \DB::table('confirmation_requests')
+                ->where('session_id', $sessionId)
+                ->latest('created_at')
+                ->first();
+
+            $overview[] = [
+                'session_id'     => (int) $sessionId,
+                'class_name'     => $class->name ?? 'Unknown',
+                'teacher_name'   => $teacher->username ?? 'Unknown',
+                'session_date'   => $session->start_time,
+                'total_selected' => $totalSelected,
+                'yes_count'      => $yesCount,
+                'no_count'       => $noCount,
+                'pending_count'  => $pendingCount,
+                'verdict'        => $verdict,
+                'request_status' => $latestRequest->status ?? 'closed',
+                'expires_at'     => $latestRequest->expires_at ?? null,
+            ];
+        }
+
+        usort($overview, function ($a, $b) {
+            return strtotime($b['session_date']) <=> strtotime($a['session_date']);
+        });
+
+        return response()->json([
+            'success' => true,
+            'data'    => array_values($overview),
+        ]);
+    }
 }

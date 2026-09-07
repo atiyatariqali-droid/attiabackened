@@ -28,12 +28,12 @@ class SessionController extends Controller
          //device 
          $teacher = Teachers::find($request->teacher_id);
 
-if (!$teacher) {
-    return response()->json([
-        'success' => false,
-        'message' => 'Teacher not found'
-    ], 404);
-}
+        if (!$teacher) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Teacher not found'
+            ], 404);
+        }
 
         $manageClass = ManageClass::findOrFail($request->class_id);
         $class_id = $manageClass->id;

@@ -32,9 +32,11 @@ class TeachersController extends Controller
             'phone'              => 'required|regex:/^[0-9]{11}$/',
             'device_id' => 'nullable|string|max:255',
             'status'    => 'nullable|in:0,1',   // NEW
+            'address' => 'required'
         ], [
             'phone.required' => 'Please enter the correct number',
             'phone.regex'    => 'Please enter the correct number',
+            'address.required' => 'Please enter the address'
         ]);
 
         // ✅ FIX 3: Use validated data only — prevents unexpected field injection
@@ -45,7 +47,7 @@ class TeachersController extends Controller
         $teacher->phone              = $validated['phone'] ?? null;
         $teacher->role               = 'teacher';   // always forced server-side
         $teacher->status             = $validated['status'] ?? 1;   // active by default, but respects incoming value
-        
+        $teacher->address            = $validated['address'];
         $teacher->device_id = $validated['device_id'] ?? null;
 
         if ($teacher->save()) {

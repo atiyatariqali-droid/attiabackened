@@ -124,6 +124,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Settings
         Route::apiResource('settings', SystemSettingController::class);
+
+        // Admin overview of verification (attendance confirmation) responses
+       Route::get('/admin/confirmation-overview', [ConfirmationController::class, 'getAdminOverview']);
     });
 
     // c. Teacher-only routes
@@ -142,7 +145,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Confirmation teacher-side
         Route::post('/confirmation/request',  [ConfirmationController::class, 'requestConfirmation']);
         Route::get('/confirmation/results',   [ConfirmationController::class, 'getResults']);
-        Route::get('/confirmation/directory', [ConfirmationController::class, 'getResponseDirectory']);
 
         // Pending student submission
         Route::post("/pending-students", [PendingStudentController::class, "store"]);
@@ -180,12 +182,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get("/search-classes/{name}", [ManageClassController::class, "searchClass"]);
 
         // Student read operations
+        Route::post("/students",               [StudentsController::class, "addStudent"]);
         Route::get("/students",                [StudentsController::class, "list"]);
         Route::get('/students/next-roll-no', [StudentsController::class, 'nextRollNo']);
         Route::get("/students/{id}",           [StudentsController::class, "editStudent"]);
         Route::get("/search-students/{name}",  [StudentsController::class, "searchStudent"]);
         Route::get("/teacher/{teacher_id}/approved-students", [StudentsController::class, "teacherStudents"]);
-
+         
+                // Pending student submission
+        Route::post("/pending-students", [PendingStudentController::class, "store"]);
         // Session read operations
         Route::get('/sessions',                     [SessionController::class, 'index']);
         Route::get('/sessions/{id}/students',       [SessionController::class, 'getSessionStudents']);
@@ -198,12 +203,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Report dashboard
         Route::get('/report/dashboard', [SessionController::class, 'reportDashboard']);
+        Route::get('/confirmation/directory', [ConfirmationController::class, 'getResponseDirectory']);
     });
 
     // e. Student-only routes
     Route::middleware(['role:student'])->group(function () {
         // Confirmation student-side
-        Route::get('/confirmation/pending',   [ConfirmationController::class, 'getPendingConfirmation']);
         Route::post('/confirmation/respond',  [ConfirmationController::class, 'submitResponse']);
 
         // Student reports
@@ -223,6 +228,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/notifications/{student_id}',             [AttendanceController::class, 'getNotifications']);
         Route::post('/notifications/{student_id}/mark-read',  [AttendanceController::class, 'markNotificationsRead']);
     });
+    Route::get('/confirmation/pending',   [ConfirmationController::class, 'getPendingConfirmation']);
 
 
 });
