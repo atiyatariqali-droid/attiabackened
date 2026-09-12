@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Students;
 use App\Models\ManageClass;
+use App\Models\ClassGroup;
 
 class StudentsController extends Controller
 {
@@ -17,14 +18,18 @@ class StudentsController extends Controller
         $query = Students::where('role', 'student')->where('status', 1);
 
         if ($user && $user->role === 'teacher') {
-            $teacherClasses = ManageClass::where('teacher_id', $user->id)
-                                          ->pluck('id')
+            // A teacher's own subject-offerings (manage_classes rows) each
+            // belong to a class_group — collect those class_group ids, since
+            // students.class_id now points at class_groups.id.
+            $teacherClassGroups = ManageClass::where('teacher_id', $user->id)
+                                          ->pluck('class_group_id')
                                           ->filter()
+                                          ->unique()
                                           ->toArray();
 
-            $query->where(function($q) use ($teacherClasses) {
-                if (!empty($teacherClasses)) {
-                    $q->whereIn('class_id', $teacherClasses);
+            $query->where(function($q) use ($teacherClassGroups) {
+                if (!empty($teacherClassGroups)) {
+                    $q->whereIn('class_id', $teacherClassGroups);
                 } else {
                     $q->whereRaw('1 = 0');
                 }
@@ -63,6 +68,8 @@ class StudentsController extends Controller
 
     // ─────────────────────────────
     // ADD STUDENT
+    // NOTE: class_id now targets class_groups.id (the physical class),
+    // NOT a specific manage_classes (subject-offering) row.
     // ─────────────────────────────
     function addStudent(Request $request){
         $request->validate([
@@ -71,7 +78,7 @@ class StudentsController extends Controller
             'password' => 'required|min:6',
             'phone' => 'nullable',
             'class' => 'nullable|string',
-            'class_id' => 'nullable|exists:manage_classes,id',
+            'class_id' => 'nullable|exists:class_groups,id',
             'roll_no' => 'nullable|string|unique:users,roll_no',
         ], [
             'roll_no.unique' => 'This roll number already exists, please assign a unique number',
@@ -91,7 +98,7 @@ if (!$userRole) {
 
         $classId = $request->class_id;
         if (!$classId && $request->class) {
-            $classId = ManageClass::where('name', $request->class)->value('id');
+            $classId = ClassGroup::where('name', $request->class)->value('id');
         }
 
         // Auto-assign roll_no agar frontend se nahi bheja gaya (max+1, global)
@@ -143,6 +150,9 @@ if (!$userRole) {
             ]);
         }
 
+        // Attendance rows still reference the specific manage_classes
+        // (subject-offering) row they were marked under, so this join is
+        // unchanged — it's independent of the class_group restructuring.
         $attendances = \DB::table('attendance as a')
             ->where('a.student_id', $id)
             ->leftJoin('manage_classes as c', 'c.id', '=', 'a.class_id')
@@ -177,7 +187,7 @@ if (!$userRole) {
             'password' => 'nullable|min:6',
             'phone'    => 'nullable',
             'class'    => 'nullable|string',
-            'class_id' => 'nullable|exists:manage_classes,id',
+            'class_id' => 'nullable|exists:class_groups,id',
             'roll_no'  => 'nullable|string|unique:users,roll_no,' . $id,
         ], [
             'roll_no.unique' => 'This roll number already exists, please assign a unique number',
@@ -192,7 +202,7 @@ if (!$userRole) {
 
         $classId = $request->class_id;
         if (!$classId && $request->filled('class')) {
-            $classId = ManageClass::where('name', $request->class)->value('id');
+            $classId = ClassGroup::where('name', $request->class)->value('id');
         }
         if ($classId) {
             $data['class_id'] = $classId;
@@ -269,14 +279,15 @@ if (!$userRole) {
         $query = Students::where('role', 'student')->where('status', 1);
 
         if ($teacher_id && $teacher_id != '0') {
-            $teacherClasses = ManageClass::where('teacher_id', $teacher_id)
-                                          ->pluck('id')
+            $teacherClassGroups = ManageClass::where('teacher_id', $teacher_id)
+                                          ->pluck('class_group_id')
                                           ->filter()
+                                          ->unique()
                                           ->toArray();
 
-            $query->where(function($q) use ($teacherClasses) {
-                if (!empty($teacherClasses)) {
-                    $q->whereIn('class_id', $teacherClasses);
+            $query->where(function($q) use ($teacherClassGroups) {
+                if (!empty($teacherClassGroups)) {
+                    $q->whereIn('class_id', $teacherClassGroups);
                 } else {
                     $q->whereRaw('1 = 0');
                 }
@@ -319,10 +330,6 @@ if (!$userRole) {
             ->get();
 
         $studentData = $student->toArray();
-        // FIXED: removed the raw `manage_classes.class_name` lookup that was here.
-        // It duplicated (and could crash on) the model's own class_name accessor
-        // (Students::getClassNameAttribute(), already appended via $appends),
-        // which was causing this whole endpoint to 500 and return no data to the app.
         $studentData['attendances'] = $attendances;
 
         return response()->json([

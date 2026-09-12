@@ -132,7 +132,9 @@ class SessionController extends Controller
             ], 404);
         }
 
-        // Get the class string name associated with the session
+        // The session is tied to a specific subject-offering (manage_classes
+        // row). To get its roster, go through that row's class_group — the
+        // shared physical class — since students.class_id now points there.
         $manageClass = ManageClass::find($session->class_id);
         if (!$manageClass) {
             return response()->json([
@@ -143,10 +145,10 @@ class SessionController extends Controller
 
         $className = $manageClass->class_name ?? $manageClass->name;
 
-        // Fetch students assigned to this class
+        // Fetch students assigned to this class's shared class_group
         $students = Students::where('role', 'student')
             ->where('status', 1)
-            ->where('class_id', $session->class_id)
+            ->where('class_id', $manageClass->class_group_id)
             ->get();
 
         // Fetch existing attendance records for this session
@@ -528,7 +530,7 @@ public function index(Request $request)
     $sessions = $query->latest('created_at')
         ->get()
         ->map(function ($session) {
-            // NEW: attach class_name so the admin UI can display it
+            // attach class_name so the admin UI can display it
             $class = ManageClass::find($session->class_id);
             $className = $class ? ($class->class_name ?? $class->name) : 'Unknown';
 
@@ -536,7 +538,7 @@ public function index(Request $request)
                 'id'           => $session->id,
                 'teacher_name' => $session->teacher->username ?? 'Unknown',
                 'class_id'     => $session->class_id,
-                'class_name'   => $className, // NEW
+                'class_name'   => $className, 
                 'status'       => $session->status,
                 'latitude'     => $session->latitude,
                 'longitude'    => $session->longitude,

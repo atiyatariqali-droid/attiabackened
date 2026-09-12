@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\TeachersController;
 use App\Http\Controllers\ManageClassController;
+use App\Http\Controllers\ClassGroupController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PasswordResetController;
 
@@ -145,6 +146,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Confirmation teacher-side
         Route::post('/confirmation/request',  [ConfirmationController::class, 'requestConfirmation']);
         Route::get('/confirmation/results',   [ConfirmationController::class, 'getResults']);
+        Route::get('/confirmation/directory', [ConfirmationController::class, 'getResponseDirectory']);
 
         // Pending student submission
         Route::post("/pending-students", [PendingStudentController::class, "store"]);
@@ -176,10 +178,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // d. Admin OR Teacher shared routes
     Route::middleware(['role:admin|teacher'])->group(function () {
-        // Class read operations
+        // Class read operations (subject-offerings — one row per class+subject+teacher)
         Route::get("/classes",               [ManageClassController::class, "list"]);
         Route::get("/classes/{id}",          [ManageClassController::class, "editClass"]);
         Route::get("/search-classes/{name}", [ManageClassController::class, "searchClass"]);
+
+        // Class GROUP read operations (physical classes — use this for
+        // student enrollment dropdowns, NOT /classes above)
+        Route::get('/class-groups', [ClassGroupController::class, 'list']);
 
         // Student read operations
         Route::post("/students",               [StudentsController::class, "addStudent"]);
@@ -203,7 +209,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Report dashboard
         Route::get('/report/dashboard', [SessionController::class, 'reportDashboard']);
-        Route::get('/confirmation/directory', [ConfirmationController::class, 'getResponseDirectory']);
     });
 
     // e. Student-only routes

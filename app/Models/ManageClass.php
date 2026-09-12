@@ -13,7 +13,8 @@ class ManageClass extends Model
 
     protected $fillable = [
         'name',
-        'teacher_id', //proper foreign key to the assigned teacher
+        'class_group_id', // NEW: links this subject-offering to its shared physical class
+        'teacher_id',
         'subject',
         'students_count',
         'status',
@@ -24,8 +25,16 @@ class ManageClass extends Model
         return $this->belongsTo(User::class, 'teacher_id');
     }
 
-    public function students()
+    // The physical class (e.g. "BS Zoology") this subject-offering belongs
+    // to. Multiple ManageClass rows (different subjects/teachers) can share
+    // one ClassGroup — and therefore share one roster of students.
+    public function classGroup()
     {
-        return $this->hasMany(User::class, 'class_id');
+        return $this->belongsTo(ClassGroup::class, 'class_group_id');
     }
+
+    // NOTE: students are no longer linked directly to a ManageClass row.
+    // They belong to the shared ClassGroup instead. To get this
+    // offering's roster, go through classGroup: $this->classGroup->students
+    // (see ManageClassController@list / StudentsController for examples).
 }

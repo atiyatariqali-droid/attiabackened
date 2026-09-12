@@ -19,22 +19,25 @@ class Students extends Model
         'roll_no',
     ];
 
-    protected $with = ['manageClass'];
+    protected $with = ['classGroup'];
 
     protected $appends = ['class', 'class_name'];
 
-    public function manageClass()
+    // class_id now points at class_groups.id (the physical class), NOT a
+    // specific manage_classes (subject-offering) row. This is what makes a
+    // student's roster shared across every subject of their class.
+    public function classGroup()
     {
-        return $this->belongsTo(ManageClass::class, 'class_id');
+        return $this->belongsTo(ClassGroup::class, 'class_id');
     }
 
     public function getClassNameAttribute()
     {
-        return $this->manageClass ? $this->manageClass->name : null;
+        return $this->classGroup ? $this->classGroup->name : null;
     }
 
     public function getClassAttribute()
     {
-        return $this->manageClass ? $this->manageClass->name : null;
+        return $this->classGroup ? $this->classGroup->name : null;
     }
 }
