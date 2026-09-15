@@ -328,8 +328,9 @@ class ConfirmationController extends Controller
         ]);
     }
 
-    // ── NEW: Admin overview — one row per session that has a confirmation request,
-    // with class/teacher info and yes/no/pending counts, for the admin dashboard ──
+    // ── FIXED: Admin overview — one row per session, deduped to the latest
+    // confirmation_request per student, and pending clamped so it can never
+    // go negative (which was causing >100% "Present" percentages) ──
     public function getAdminOverview(Request $request)
     {
         $sessionIds = \DB::table('confirmation_requests')
@@ -352,29 +353,37 @@ class ConfirmationController extends Controller
             $class   = \DB::table('manage_classes')->where('id', $session->class_id)->first();
             $teacher = \DB::table('users')->where('id', $session->teacher_id)->first();
 
-            $requestIds = \DB::table('confirmation_requests')
+            // FIX: keep only the latest confirmation_request per student for this
+            // session, so re-invites / stale closed duplicates don't skew the count.
+            $requestsForSession = \DB::table('confirmation_requests')
                 ->where('session_id', $sessionId)
-                ->pluck('id');
+                ->orderByDesc('created_at')
+                ->get()
+                ->unique('student_id');
 
+            $requestIds = $requestsForSession->pluck('id');
+
+            // FIX: also dedupe responses by request_id as a safety net, in case
+            // of any leftover duplicate rows in confirmation_responses.
             $responses = \DB::table('confirmation_responses')
                 ->whereIn('request_id', $requestIds)
-                ->get();
+                ->get()
+                ->unique('request_id');
 
             $yesCount       = $responses->where('response', 'yes')->count();
             $noCount        = $responses->where('response', 'no')->count();
-            $totalSelected  = $requestIds->count();
-            $totalResponded = $responses->count();
-            $pendingCount   = $totalSelected - $totalResponded;
+            $totalSelected  = $requestsForSession->count();
+            $totalResponded = $yesCount + $noCount;
+
+            // FIX: clamp instead of plain subtraction so pending can never be negative.
+            $pendingCount = max(0, $totalSelected - $totalResponded);
 
             $verdict = 'Awaiting responses';
             if ($totalResponded > 0) {
                 $verdict = $yesCount >= $noCount ? 'Teacher Present ✓' : 'Teacher NOT Present ✗';
             }
 
-            $latestRequest = \DB::table('confirmation_requests')
-                ->where('session_id', $sessionId)
-                ->latest('created_at')
-                ->first();
+            $latestRequest = $requestsForSession->first();
 
             $overview[] = [
                 'session_id'     => (int) $sessionId,
