@@ -190,18 +190,21 @@ class AdminReportController extends Controller
         // Build student query
         $studentQuery = DB::table('users as s')
             ->where('s.role', 'student')
-            ->leftJoin('manage_classes as c', 'c.id', '=', 's.class_id')
+            ->leftJoin('class_groups as cg', 'cg.id', '=', 's.class_id')
+            ->leftJoin('manage_classes as c', 'c.class_group_id', '=', 'cg.id')
             ->leftJoin('users as t', 't.id', '=', 'c.teacher_id')
             ->select(
                 's.id as student_id',
                 's.username as student_name',
                 's.roll_no',
-                'c.name as class_name',
-                't.username as teacher_name'
-            );
+                'cg.name as class_name', // student belongs to cohort
+                DB::raw('GROUP_CONCAT(DISTINCT t.username SEPARATOR ", ") as teacher_name')
+            )
+            ->groupBy('s.id', 's.username', 's.roll_no', 'cg.name');
 
         if ($classId) {
-            $studentQuery->where('s.class_id', $classId);
+            // Filter by specific subject offering
+            $studentQuery->where('c.id', $classId);
         }
         if ($teacherId) {
             $studentQuery->where(function($q) use ($teacherId) {
@@ -226,7 +229,7 @@ class AdminReportController extends Controller
             $studentQuery->whereIn('s.id', $ids);
         }
 
-        $students = $studentQuery->orderBy('c.name')->orderBy('s.username')->get();
+        $students = $studentQuery->orderBy('cg.name')->orderBy('s.username')->get();
 
         $result = [];
         foreach ($students as $student) {
@@ -425,15 +428,17 @@ public function getStudentDetailReport(Request $request, $id)
     $student = DB::table('users as s')
         ->where('s.id', $id)
         ->where('s.role', 'student')
-        ->leftJoin('manage_classes as c', 'c.id', '=', 's.class_id')
+        ->leftJoin('class_groups as cg', 'cg.id', '=', 's.class_id')
+        ->leftJoin('manage_classes as c', 'c.class_group_id', '=', 'cg.id')
         ->leftJoin('users as t', 't.id', '=', 'c.teacher_id')
         ->select(
             's.id as student_id',
             's.username as student_name',
             's.roll_no',
-            'c.name as class_name',
-            't.username as teacher_name'
+            'cg.name as class_name',
+            DB::raw('GROUP_CONCAT(DISTINCT t.username SEPARATOR ", ") as teacher_name')
         )
+        ->groupBy('s.id', 's.username', 's.roll_no', 'cg.name')
         ->first();
 
     if (!$student) {

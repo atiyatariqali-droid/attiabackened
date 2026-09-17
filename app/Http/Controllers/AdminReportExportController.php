@@ -69,9 +69,17 @@ class AdminReportExportController extends Controller
         $student = DB::table('users as s')
             ->where('s.id', $id)
             ->where('s.role', 'student')
-            ->leftJoin('manage_classes as c', 'c.id', '=', 's.class_id')
+            ->leftJoin('class_groups as cg', 'cg.id', '=', 's.class_id')
+            ->leftJoin('manage_classes as c', 'c.class_group_id', '=', 'cg.id')
             ->leftJoin('users as t', 't.id', '=', 'c.teacher_id')
-            ->select('s.id as student_id', 's.username as student_name', 's.roll_no', 'c.name as class_name', 't.username as teacher_name')
+            ->select(
+                's.id as student_id', 
+                's.username as student_name', 
+                's.roll_no', 
+                'cg.name as class_name', 
+                DB::raw('GROUP_CONCAT(DISTINCT t.username SEPARATOR ", ") as teacher_name')
+            )
+            ->groupBy('s.id', 's.username', 's.roll_no', 'cg.name')
             ->first();
 
         if (!$student) {
@@ -230,11 +238,19 @@ class AdminReportExportController extends Controller
         // ---- Students list ----
         $studentQuery = DB::table('users as s')
             ->where('s.role', 'student')
-            ->leftJoin('manage_classes as c', 'c.id', '=', 's.class_id')
+            ->leftJoin('class_groups as cg', 'cg.id', '=', 's.class_id')
+            ->leftJoin('manage_classes as c', 'c.class_group_id', '=', 'cg.id')
             ->leftJoin('users as t', 't.id', '=', 'c.teacher_id')
-            ->select('s.id as student_id', 's.username as student_name', 's.roll_no', 'c.name as class_name', 't.username as teacher_name');
+            ->select(
+                's.id as student_id', 
+                's.username as student_name', 
+                's.roll_no', 
+                'cg.name as class_name', 
+                DB::raw('GROUP_CONCAT(DISTINCT t.username SEPARATOR ", ") as teacher_name')
+            )
+            ->groupBy('s.id', 's.username', 's.roll_no', 'cg.name');
 
-        if ($classId) $studentQuery->where('s.class_id', $classId);
+        if ($classId) $studentQuery->where('c.id', $classId);
         if ($teacherId) {
             $studentQuery->where(function($q) use ($teacherId) {
                 $q->where('c.teacher_id', $teacherId)
@@ -254,7 +270,7 @@ class AdminReportExportController extends Controller
             $studentQuery->whereIn('s.id', $ids);
         }
 
-        $students = $studentQuery->orderBy('c.name')->orderBy('s.username')->get();
+        $students = $studentQuery->orderBy('cg.name')->orderBy('s.username')->get();
 
         $rows = [];
         foreach ($students as $student) {
