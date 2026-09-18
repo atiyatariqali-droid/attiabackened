@@ -30,9 +30,9 @@ class AdminReportController extends Controller
         } elseif ($startDate && $endDate) {
             $sessionQuery->whereBetween('start_time', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()]);
         } elseif ($days) {
-            $sessionQuery->where('start_time', '>=', now()->subDays((int)$days));
+            $sessionQuery->where('start_time', '>=', now()->subDays((int)$days)->startOfDay());
         } else {
-            $sessionQuery->where('start_time', '>=', now()->subDays(7));
+            $sessionQuery->where('start_time', '>=', now()->subDays(7)->startOfDay());
         }
 
         if ($classId)   $sessionQuery->where('class_id', $classId);
@@ -42,17 +42,20 @@ class AdminReportController extends Controller
         $totalSessions = $sessionQuery->count();
 
         // Total students query
-        $studentQuery = DB::table('users')->where('role', 'student');
+        $studentQuery = DB::table('users as s')
+            ->where('s.role', 'student')
+            ->leftJoin('class_groups as cg', 'cg.id', '=', 's.class_id')
+            ->leftJoin('manage_classes as c', 'c.class_group_id', '=', 'cg.id');
+
         if ($classId) {
-            $studentQuery->where('class_id', $classId);
+            $studentQuery->where('c.id', $classId);
         }
         if ($teacherId) {
-            $teacherClasses = DB::table('manage_classes')->where('teacher_id', $teacherId)->pluck('id');
-            $studentQuery->whereIn('class_id', $teacherClasses);
+            $studentQuery->where('c.teacher_id', $teacherId);
         }
-        if ($studentId) $studentQuery->where('id', $studentId);
-        if ($studentName) $studentQuery->where('username', 'like', "%{$studentName}%");
-        $totalStudents = $studentQuery->count();
+        if ($studentId) $studentQuery->where('s.id', $studentId);
+        if ($studentName) $studentQuery->where('s.username', 'like', "%{$studentName}%");
+        $totalStudents = $studentQuery->distinct('s.id')->count('s.id');
 
         // Attendance Query (Querying attendance table directly)
         $attendanceQuery = DB::table('attendance as a')
