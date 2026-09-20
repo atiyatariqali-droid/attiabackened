@@ -195,24 +195,27 @@ class AdminReportExportController extends Controller
         } elseif ($startDate && $endDate) {
             $sessionQuery->whereBetween('start_time', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()]);
         } elseif ($days) {
-            $sessionQuery->where('start_time', '>=', now()->subDays((int)$days));
+            $sessionQuery->where('start_time', '>=', now()->subDays((int)$days)->startOfDay());
         }
         if ($classId)   $sessionQuery->where('class_id', $classId);
         if ($teacherId) $sessionQuery->where('teacher_id', $teacherId);
         if ($sessionId) $sessionQuery->where('id', $sessionId);
         $totalSessions = $sessionQuery->count();
 
-        $studentCountQuery = DB::table('users')->where('role', 'student');
+        $studentCountQuery = DB::table('users as s')
+            ->where('s.role', 'student')
+            ->leftJoin('class_groups as cg', 'cg.id', '=', 's.class_id')
+            ->leftJoin('manage_classes as c', 'c.class_group_id', '=', 'cg.id');
+            
         if ($classId) {
-            $studentCountQuery->where('class_id', $classId);
+            $studentCountQuery->where('c.id', $classId);
         }
         if ($teacherId) {
-            $teacherClasses = DB::table('manage_classes')->where('teacher_id', $teacherId)->pluck('id');
-            $studentCountQuery->whereIn('class_id', $teacherClasses);
+            $studentCountQuery->where('c.teacher_id', $teacherId);
         }
-        if ($studentId) $studentCountQuery->where('id', $studentId);
-        if ($studentName) $studentCountQuery->where('username', 'like', "%{$studentName}%");
-        $totalStudents = $studentCountQuery->count();
+        if ($studentId) $studentCountQuery->where('s.id', $studentId);
+        if ($studentName) $studentCountQuery->where('s.username', 'like', "%{$studentName}%");
+        $totalStudents = $studentCountQuery->distinct('s.id')->count('s.id');
 
         $attendanceQuery = DB::table('attendance as a')
             ->join('users as s', 's.id', '=', 'a.student_id')

@@ -19,7 +19,8 @@ class TeacherReportExportController extends AdminReportExportController
     private function assertOwnsStudent($teacherId, $studentId)
     {
         $belongs = DB::table('users')
-            ->join('manage_classes', 'users.class_id', '=', 'manage_classes.id')
+            ->join('class_groups', 'users.class_id', '=', 'class_groups.id')
+            ->join('manage_classes', 'manage_classes.class_group_id', '=', 'class_groups.id')
             ->where('users.id', $studentId)
             ->where('users.role', 'student')
             ->where('manage_classes.teacher_id', $teacherId)

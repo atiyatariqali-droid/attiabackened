@@ -629,11 +629,13 @@ public function getStudentDetailReport(Request $request, $id)
                 ->where('teacher_id', $teacher->id)
                 ->count();
 
-            $teacherClasses = DB::table('manage_classes')->where('teacher_id', $teacher->id)->pluck('id');
-            $totalStudents = DB::table('users')
-                ->where('role', 'student')
-                ->whereIn('class_id', $teacherClasses)
-                ->count();
+            $totalStudents = DB::table('users as s')
+                ->where('s.role', 'student')
+                ->join('class_groups as cg', 'cg.id', '=', 's.class_id')
+                ->join('manage_classes as c', 'c.class_group_id', '=', 'cg.id')
+                ->where('c.teacher_id', $teacher->id)
+                ->distinct('s.id')
+                ->count('s.id');
 
             $attendanceQuery = DB::table('attendance as a')
                 ->join('attendance_sessions as s', 's.id', '=', 'a.session_id')
@@ -671,7 +673,7 @@ public function getStudentDetailReport(Request $request, $id)
             $query->where('c.teacher_id', $request->teacher_id);
         }
         
-        $classes = $query->select('c.id', 'c.name as class_name', 't.username as teacher_username', 'c.students_count', 'c.status')
+        $classes = $query->select('c.id', 'c.class_group_id', 'c.name as class_name', 't.username as teacher_username', 'c.students_count', 'c.status')
             ->get();
 
         $result = [];
@@ -682,7 +684,7 @@ public function getStudentDetailReport(Request $request, $id)
 
             $totalStudents = DB::table('users')
                 ->where('role', 'student')
-                ->where('class_id', $class->id)
+                ->where('class_id', $class->class_group_id)
                 ->count();
 
             $attendanceQuery = DB::table('attendance')
