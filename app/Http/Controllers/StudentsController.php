@@ -14,18 +14,38 @@ class StudentsController extends Controller
     // ─────────────────────────────
     function list(Request $request){
         $user = $request->user();
+        $statusFilter = $request->query('status', 'approved'); // 'approved' | 'pending' | 'all'
 
-        $query = Students::where('role', 'student')->where('status', 1);
+        $query = Students::where('role', 'student');
 
+        if ($statusFilter === 'pending') {
+            // Pending students are shown as-is, with no class filtering at all
+            $query->where('status', 0);
+
+        } elseif ($statusFilter === 'all') {
+            // No status filter, but keep the existing teacher class restriction
+            $this->applyTeacherClassFilter($query, $user);
+
+        } else { // 'approved' (default) — unchanged behavior
+            $query->where('status', 1);
+            $this->applyTeacherClassFilter($query, $user);
+        }
+
+        return response()->json([
+            "success" => true,
+            "data" => $query->get()
+        ]);
+    }
+
+    // Small helper so the class-restriction logic isn't duplicated
+    private function applyTeacherClassFilter($query, $user)
+    {
         if ($user && $user->role === 'teacher') {
-            // A teacher's own subject-offerings (manage_classes rows) each
-            // belong to a class_group — collect those class_group ids, since
-            // students.class_id now points at class_groups.id.
             $teacherClassGroups = ManageClass::where('teacher_id', $user->id)
-                                          ->pluck('class_group_id')
-                                          ->filter()
-                                          ->unique()
-                                          ->toArray();
+                ->pluck('class_group_id')
+                ->filter()
+                ->unique()
+                ->toArray();
 
             $query->where(function($q) use ($teacherClassGroups) {
                 if (!empty($teacherClassGroups)) {
@@ -35,10 +55,27 @@ class StudentsController extends Controller
                 }
             });
         }
+    }
+
+    // ─────────────────────────────
+    // APPROVE STUDENT (pending -> active)
+    // ─────────────────────────────
+    function approveStudent($id){
+        $student = Students::where('id', $id)->where('role', 'student')->first();
+
+        if(!$student){
+            return response()->json([
+                "success" => false,
+                "message" => "Student not found"
+            ], 404);
+        }
+
+        $student->status = 1;
+        $student->save();
 
         return response()->json([
             "success" => true,
-            "data" => $query->get()
+            "message" => "Student approved successfully"
         ]);
     }
 

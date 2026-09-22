@@ -90,19 +90,23 @@ class AttendanceController extends Controller
         return max(1, (int) round($presentCount * 0.20));
     }
 
-    // Restrict teacher-verification notifications to BS classes only
+    // Restrict teacher-verification notifications to BS classes only.
+    // FIXED: previously matched any class name that did NOT contain
+    // INTER/FSC/FA, which let every non-BS class (MBA, ADP, MS, BBA, ...)
+    // through as well. Now it only matches class names that actually
+    // contain the standalone word "BS".
     private function isBsClass($classId)
-    {
-        $class = ManageClass::find($classId);
-        if (!$class || empty($class->class_name)) {
-            return true;
-        }
-        $name = strtoupper(trim($class->class_name));
-        if ((str_contains($name, 'INTER') || str_contains($name, 'FSC') || str_contains($name, 'FA')) && !str_contains($name, 'BS')) {
-            return false;
-        }
-        return true;
+{
+    $class = ManageClass::find($classId);
+
+    if (!$class || empty($class->name)) {
+        return false;
     }
+
+    $name = strtoupper(trim($class->name));
+
+    return str_starts_with($name, 'BS');
+}
 
     private function calculateDistance($lat1, $lon1, $lat2, $lon2)
     {

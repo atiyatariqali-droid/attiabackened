@@ -69,7 +69,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::delete("/students/{id}",        [StudentsController::class, "deleteStudent"]);
 
         // Pending students management
-        Route::get("/pending-students",               [PendingStudentController::class, "list"]);
         Route::post("/pending-students/approve/{id}", [PendingStudentController::class, "approve"]);
         Route::post("/pending-students/reject/{id}",  [PendingStudentController::class, "reject"]);
         Route::post("/pending-students/approve-all",  [PendingStudentController::class, "approveAll"]);
@@ -186,6 +185,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Class GROUP read operations (physical classes — use this for
         // student enrollment dropdowns, NOT /classes above)
         Route::get('/class-groups', [ClassGroupController::class, 'list']);
+        Route::get("/pending-students",               [PendingStudentController::class, "list"]);
+        Route::get('/pending-students/count', [PendingStudentController::class, 'count']);
 
         // Student read operations
         Route::post("/students",               [StudentsController::class, "addStudent"]);
@@ -194,6 +195,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get("/students/{id}",           [StudentsController::class, "editStudent"]);
         Route::get("/search-students/{name}",  [StudentsController::class, "searchStudent"]);
         Route::get("/teacher/{teacher_id}/approved-students", [StudentsController::class, "teacherStudents"]);
+        Route::post('/students/{id}/approve', [StudentsController::class, 'approveStudent']);
          
                 // Pending student submission
         Route::post("/pending-students", [PendingStudentController::class, "store"]);

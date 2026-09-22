@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Session;
 use App\Models\Attendance;
+use App\Models\ManageClass;
 use Carbon\Carbon;
 
 class ConfirmationController extends Controller
@@ -16,6 +17,20 @@ class ConfirmationController extends Controller
             return 0;
         }
         return max(1, (int) round($presentCount * 0.20));
+    }
+
+    // Restrict teacher-verification notifications to BS classes only.
+    // Shared rule with AttendanceController — matches class names that
+    // contain the standalone word "BS" (e.g. "BS Computer Science", "BS-IT"),
+    // and excludes things like "MBS" or "BBS" via the word boundary.
+    private function isBsClass($classId)
+    {
+        $class = ManageClass::find($classId);
+        if (!$class || empty($class->class_name)) {
+            return false; // class not found -> don't notify
+        }
+        $name = strtoupper(trim($class->class_name));
+        return (bool) preg_match('/\bBS\b/', $name);
     }
 
     public function requestConfirmation(Request $request)
@@ -32,14 +47,14 @@ class ConfirmationController extends Controller
                 'message' => 'Session is not active'
             ], 400);
         }
-        // ── NEW: restrict this notification to BS classes only ──
-    $class = \App\Models\ManageClass::find($session->class_id);
-    if (!$class || stripos(trim($class->class_name), 'BS') !== 0) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Confirmation requests are only enabled for BS classes'
-        ], 403);
-    }
+
+        // ── Restrict this notification to BS classes only (shared rule with AttendanceController) ──
+        if (!$this->isBsClass($session->class_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Confirmation requests are only enabled for BS classes'
+            ], 403);
+        }
 
         \DB::table('confirmation_requests')
             ->where('session_id', $request->session_id)

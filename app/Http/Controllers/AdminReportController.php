@@ -303,7 +303,7 @@ class AdminReportController extends Controller
     public function getClasses()
     {
         $classes = DB::table('manage_classes')
-            ->select('id', 'name as class_name')
+            ->select('id', 'name as class_name', 'subject')
             ->orderBy('name')
             ->get();
         return response()->json(['classes' => $classes]);
@@ -456,9 +456,11 @@ public function getStudentDetailReport(Request $request, $id)
         ->leftJoin('manage_classes as c', 'c.id', '=', 'a.class_id')
         ->select(
             'a.id as attendance_id',
+            'a.class_id',
             'a.attendance_date',
             'a.status',
-            'c.name as class_name'
+            'c.name as class_name',
+            'c.subject'
         );
 
     // Optional date range filter
@@ -474,6 +476,16 @@ public function getStudentDetailReport(Request $request, $id)
         $logsQuery->whereDate('a.attendance_date', '>=', $startDate);
     } elseif ($endDate) {
         $logsQuery->whereDate('a.attendance_date', '<=', $endDate);
+    }
+
+    $classId = $request->query('class_id');
+    if ($classId) {
+        $logsQuery->where('a.class_id', $classId);
+    }
+
+    $status = $request->query('status');
+    if ($status && $status !== 'All') {
+        $logsQuery->where('a.status', $status);
     }
     // Get attendance records
     $attendanceLogs = $logsQuery
@@ -618,6 +630,22 @@ public function getStudentDetailReport(Request $request, $id)
     // GET /api/admin/reports/teachers-summary
     public function getTeachersSummaryReport(Request $request)
     {
+        $classId = $request->query('class_id');
+        $days = (int) $request->query('days', 7);
+        $date = $request->query('date');
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+        
+        $applyDateFilter = function ($query, $column) use ($date, $startDate, $endDate, $days) {
+            if ($date) {
+                $query->whereDate($column, $date);
+            } elseif ($startDate && $endDate) {
+                $query->whereBetween(DB::raw("DATE($column)"), [$startDate, $endDate]);
+            } else {
+                $query->whereDate($column, '>=', now()->subDays($days)->toDateString());
+            }
+        };
+
         $teachers = DB::table('users')
             ->where('role', 'teacher')
             ->select('id', 'username as name', 'email', 'phone')
@@ -625,21 +653,24 @@ public function getStudentDetailReport(Request $request, $id)
 
         $result = [];
         foreach ($teachers as $teacher) {
-            $totalSessions = DB::table('attendance_sessions')
-                ->where('teacher_id', $teacher->id)
-                ->count();
+            $sessionsQuery = DB::table('attendance_sessions')->where('teacher_id', $teacher->id);
+            if ($classId) $sessionsQuery->where('class_id', $classId);
+            $applyDateFilter($sessionsQuery, 'created_at');
+            $totalSessions = $sessionsQuery->count();
 
-            $totalStudents = DB::table('users as s')
+            $studentsQuery = DB::table('users as s')
                 ->where('s.role', 'student')
                 ->join('class_groups as cg', 'cg.id', '=', 's.class_id')
                 ->join('manage_classes as c', 'c.class_group_id', '=', 'cg.id')
-                ->where('c.teacher_id', $teacher->id)
-                ->distinct('s.id')
-                ->count('s.id');
+                ->where('c.teacher_id', $teacher->id);
+            if ($classId) $studentsQuery->where('c.id', $classId);
+            $totalStudents = $studentsQuery->distinct('s.id')->count('s.id');
 
             $attendanceQuery = DB::table('attendance as a')
                 ->join('attendance_sessions as s', 's.id', '=', 'a.session_id')
                 ->where('s.teacher_id', $teacher->id);
+            if ($classId) $attendanceQuery->where('a.class_id', $classId);
+            $applyDateFilter($attendanceQuery, 'a.attendance_date');
 
             $totalMarked = (clone $attendanceQuery)->count();
             $presentCount = (clone $attendanceQuery)->whereIn('a.status', ['present', 'late'])->count();
@@ -667,20 +698,36 @@ public function getStudentDetailReport(Request $request, $id)
     // GET /api/admin/reports/classes-summary
     public function getClassesSummaryReport(Request $request)
     {
+        $days = (int) $request->query('days', 7);
+        $date = $request->query('date');
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+        
+        $applyDateFilter = function ($query, $column) use ($date, $startDate, $endDate, $days) {
+            if ($date) {
+                $query->whereDate($column, $date);
+            } elseif ($startDate && $endDate) {
+                $query->whereBetween(DB::raw("DATE($column)"), [$startDate, $endDate]);
+            } else {
+                $query->whereDate($column, '>=', now()->subDays($days)->toDateString());
+            }
+        };
+
         $query = DB::table('manage_classes as c')
             ->leftJoin('users as t', 't.id', '=', 'c.teacher_id');
         if ($request->filled('teacher_id')) {
             $query->where('c.teacher_id', $request->teacher_id);
         }
         
-        $classes = $query->select('c.id', 'c.class_group_id', 'c.name as class_name', 't.username as teacher_username', 'c.students_count', 'c.status')
+        $classes = $query->select('c.id', 'c.class_group_id', 'c.name as class_name', 'c.subject', 't.username as teacher_username', 'c.students_count', 'c.status')
             ->get();
 
         $result = [];
         foreach ($classes as $class) {
-            $totalSessions = DB::table('attendance_sessions')
-                ->where('class_id', $class->id)
-                ->count();
+            $sessionsQuery = DB::table('attendance_sessions')
+                ->where('class_id', $class->id);
+            $applyDateFilter($sessionsQuery, 'created_at');
+            $totalSessions = $sessionsQuery->count();
 
             $totalStudents = DB::table('users')
                 ->where('role', 'student')
@@ -689,6 +736,7 @@ public function getStudentDetailReport(Request $request, $id)
 
             $attendanceQuery = DB::table('attendance')
                 ->where('class_id', $class->id);
+            $applyDateFilter($attendanceQuery, 'attendance_date');
 
             $totalMarked = (clone $attendanceQuery)->count();
             $presentCount = (clone $attendanceQuery)->whereIn('status', ['present', 'late'])->count();
@@ -699,6 +747,7 @@ public function getStudentDetailReport(Request $request, $id)
             $result[] = [
                 'class_id'        => $class->id,
                 'class_name'      => $class->class_name,
+                'subject'         => $class->subject,
                 'teacher_name'    => $class->teacher_username ?? 'Not Assigned',
                 'status'          => $class->status,
                 'total_sessions'  => $totalSessions,
@@ -733,6 +782,19 @@ public function getStudentDetailReport(Request $request, $id)
         }
         if ($request->filled('class_id')) {
             $sessionsQuery->where('s.class_id', $request->class_id);
+        }
+
+        $days = (int) $request->query('days', 7);
+        $date = $request->query('date');
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+
+        if ($date) {
+            $sessionsQuery->whereDate('s.created_at', $date);
+        } elseif ($startDate && $endDate) {
+            $sessionsQuery->whereBetween(DB::raw("DATE(s.created_at)"), [$startDate, $endDate]);
+        } else {
+            $sessionsQuery->whereDate('s.created_at', '>=', now()->subDays($days)->toDateString());
         }
 
         $sessions = $sessionsQuery->get();
