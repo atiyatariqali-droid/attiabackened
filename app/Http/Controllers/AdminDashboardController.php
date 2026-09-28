@@ -4,16 +4,15 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
-use App\Models\ManageClass; // adjust if your model class has a different name
+use App\Models\ManageClass; 
 
 class AdminDashboardController extends Controller
 {
-    // GET /api/admin/dashboard-stats
-    // Single endpoint powering the admin dashboard's stat cards.
+    // Admin dashboard's stat cards.
     public function adminStats(Request $request)
     {
         $totalStudents = User::where('role', 'student')
-            ->where('status', 1) // only approved/active students
+            ->where('status', 1) 
             ->count();
 
         $totalTeachers = User::where('role', 'teacher')->count();
@@ -21,7 +20,7 @@ class AdminDashboardController extends Controller
         $totalClasses  = ManageClass::count();
         $activeClasses = ManageClass::where('status', 'active')->count();
 
-        // Distinct subjects taught across all classes.
+        // Distinct subjects across all classes.
         $totalSubjects = ManageClass::whereNotNull('subject')
             ->distinct()
             ->count('subject');

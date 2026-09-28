@@ -12,7 +12,7 @@ use App\Exports\StudentReportExport;
 
 class AdminReportExportController extends Controller
 {
-    // GET /api/admin/reports/export/pdf
+    // Get expor pdf and excel for reports
     public function exportPdf(Request $request)
     {
         $data = $this->buildReportPayload($request);
@@ -24,7 +24,7 @@ class AdminReportExportController extends Controller
         return $pdf->download($filename);
     }
 
-    // GET /api/admin/reports/export/excel
+    // Get export excel for reports
     public function exportExcel(Request $request)
     {
         $data = $this->buildReportPayload($request);
@@ -33,7 +33,7 @@ class AdminReportExportController extends Controller
         return Excel::download(new AttendanceReportExport($data), $filename);
     }
 
-    // GET /api/admin/reports/student/{id}/export/pdf
+    // Get export pdf for student report
     public function exportStudentPdf(Request $request, $id)
     {
         $data = $this->buildStudentReportPayload($id, $request);
@@ -48,7 +48,7 @@ class AdminReportExportController extends Controller
         return $pdf->download($filename);
     }
 
-    // GET /api/admin/reports/student/{id}/export/excel
+    // Get export excel for student report
     public function exportStudentExcel(Request $request, $id)
     {
         $data = $this->buildStudentReportPayload($id, $request);
@@ -60,10 +60,7 @@ class AdminReportExportController extends Controller
         return Excel::download(new StudentReportExport($data), $filename);
     }
 
-    /**
-     * Mirrors AdminReportController::getStudentDetailReport so the
-     * exported file matches exactly what's shown in the student report modal.
-     */
+    // Builds the payload for a single student's attendance report, including optional date range filtering.
      protected function buildStudentReportPayload($id, Request $request = null): ?array
     {
         $student = DB::table('users as s')
@@ -91,7 +88,7 @@ class AdminReportExportController extends Controller
             ->leftJoin('manage_classes as c', 'c.id', '=', 'a.class_id')
             ->select('a.id as attendance_id', 'a.attendance_date', 'a.status', 'c.name as class_name');
 
-        // NEW: optional date range filter for teacher/student exports
+        //optional date range filter for teacher or student exports
         if ($request) {
             $startDate = $request->query('start_date');
             $endDate   = $request->query('end_date');
@@ -147,11 +144,7 @@ class AdminReportExportController extends Controller
         ];
     }
 
-    /**
-     * Rebuilds the same dataset shown on the Reports & Audit screen
-     * (mirrors AdminReportController::getStats / getStudentsList) so the
-     * export always reflects the currently applied filters.
-     */
+    //  Rebuilds the same dataset shown on the Reports & Audit screen
     protected function buildReportPayload(Request $request): array
     {
         $classId     = $request->query('class_id');
@@ -170,7 +163,6 @@ class AdminReportExportController extends Controller
             $days = 7;
         }
 
-        // Resolve human-readable filter labels
         $className = 'All Classes';
         if ($classId) {
             $className = DB::table('manage_classes')->where('id', $classId)->value('name') ?? 'All Classes';
@@ -188,7 +180,7 @@ class AdminReportExportController extends Controller
             $periodLabel = "Last {$days} Days";
         }
 
-        // ---- Stats ----
+        //Stats 
         $sessionQuery = DB::table('attendance_sessions');
         if ($date) {
             $sessionQuery->whereDate('start_time', $date);
@@ -238,7 +230,7 @@ class AdminReportExportController extends Controller
         $presentCount  = (clone $attendanceQuery)->whereIn('a.status', ['present', 'late'])->count();
         $attendancePct = $totalMarked > 0 ? round(($presentCount / $totalMarked) * 100, 1) : 0;
 
-        // ---- Students list ----
+        //Students list
         $studentQuery = DB::table('users as s')
             ->where('s.role', 'student')
             ->leftJoin('class_groups as cg', 'cg.id', '=', 's.class_id')

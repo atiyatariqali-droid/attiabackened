@@ -34,28 +34,16 @@ class User extends Authenticatable
         'device_id',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
+
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * The accessors to append to the model's array form.
-     *
-     * @var array
-     */
+    
     protected $appends = ['class', 'class_name'];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
+    //Get the attributes that should be cast
     protected function casts(): array
     {
         return [
@@ -68,25 +56,19 @@ class User extends Authenticatable
         return null;
     }
 
-    /**
-     * Get the class the student belongs to
-     */
+    // Get the class the student belongs to
     public function manageClass()
     {
         return $this->belongsTo(ManageClass::class, 'class_id');
     }
 
-    /**
-     * Get the class name for frontend compatibility
-     */
+    //Get the class name
     public function getClassNameAttribute()
     {
         return $this->manageClass ? $this->manageClass->name : null;
     }
 
-    /**
-     * Get the class name for legacy frontend compatibility which maps json['class']
-     */
+    //Get the class name for legacy frontend compatibility
     public function getClassAttribute()
     {
         return $this->manageClass ? $this->manageClass->name : null;

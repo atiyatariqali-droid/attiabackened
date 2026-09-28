@@ -14,10 +14,7 @@ use Illuminate\Support\Facades\DB;
 
 class AdminProfileController extends Controller
 {
-    /**
-     * GET /api/admin/profile
-     * Returns the authenticated admin's profile only.
-     */
+     // Returns the authenticated admin's profile only
     public function show(Request $request): JsonResponse
     {
         $admin = $request->user();
@@ -43,10 +40,7 @@ class AdminProfileController extends Controller
         ]);
     }
 
-    /**
-     * PUT /api/admin/profile
-     * Updates only name and phone of the authenticated admin.
-     */
+    //   Updates only name and phone of the authenticated admin.
     public function update(UpdateProfileRequest $request): JsonResponse
     {
         $admin = $request->user();
@@ -70,10 +64,8 @@ class AdminProfileController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/admin/profile/change-password
-     * Verifies current password before setting a new one
-     */
+    //Change Password
+
     public function changePassword(ChangePasswordRequest $request): JsonResponse
     {
         $admin = $request->user();
@@ -99,10 +91,7 @@ class AdminProfileController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/admin/profile/change-email
-     * Verifies current email before updating to the new one.
-     */
+    //   Change Email
     public function changeEmail(ChangeEmailRequest $request): JsonResponse
     {
         $admin = $request->user();
@@ -128,10 +117,7 @@ class AdminProfileController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/admin/logout
-     * Revokes the current token.
-     */
+    // Logout
     public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
@@ -142,10 +128,8 @@ class AdminProfileController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/admin/logout-all
-     * Revokes all tokens for this admin (logout from all devices).
-     */
+    //Logout All
+
     public function logoutAll(Request $request): JsonResponse
     {
         $admin = $request->user();
@@ -153,8 +137,6 @@ class AdminProfileController extends Controller
         if ($admin->role !== 'admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-
-        // Revoke all Sanctum tokens
         $admin->tokens()->delete();
 
         return response()->json([
@@ -162,10 +144,8 @@ class AdminProfileController extends Controller
             'message' => 'Logged out from all devices successfully',
         ]);
     }
-    /**
-     * POST /api/student/profile/change-password
-     * Verifies current password before setting a new one (Student).
-     */
+    
+    // Change Password for Student
     public function studentChangePassword(ChangePasswordRequest $request): JsonResponse
     {
         $student = $request->user();

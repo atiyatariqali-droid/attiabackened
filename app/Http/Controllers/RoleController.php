@@ -9,10 +9,7 @@ use Spatie\Permission\Models\Permission;
 
 class RoleController extends Controller
 {
-    // ─────────────────────────────
-    // ROLE CRUD FOR FLUTTER
-    
-    // GET /roles - List all roles
+    //List all roles
     public function listRoles() {
         $roles = Role::select('id', 'name', 'created_at')->orderBy('id', 'desc')->get();
         return response()->json([
@@ -21,7 +18,7 @@ class RoleController extends Controller
         ]);
     }
 
-    // GET /roles/{id} - Get single role
+    //Edit role
     public function editRole($id) {
         $role = Role::find($id);
         if(!$role) {
@@ -36,7 +33,7 @@ class RoleController extends Controller
         ]);
     }
 
-    // PUT /roles/{id} - Update role
+    //Update role
     public function updateRole(Request $request, $id) {
         $role = Role::find($id);
         if(!$role) {
@@ -59,7 +56,7 @@ class RoleController extends Controller
         ]);
     }
 
-    // DELETE /roles/{id} - Delete role
+    //Delete role
     public function deleteRole($id) {
         $role = Role::find($id);
         if(!$role) {
@@ -76,10 +73,6 @@ class RoleController extends Controller
         ]);
     }
 
-    // ─────────────────────────────
-    // EXISTING FUNCTIONS - NO CHANGE
-    // ─────────────────────────────
-
     //Create role
     public function createRole(Request $request)
     {
@@ -94,8 +87,6 @@ class RoleController extends Controller
             'role' => $role
         ]);
     }
-
-
 
     //Assign Role to User
     public function assignRole(Request $request)

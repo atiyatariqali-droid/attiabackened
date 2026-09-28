@@ -11,15 +11,7 @@ use App\Models\Teachers;
 
 class ManageClassController extends Controller
 {
-    // ─────────────────────────────
-    // LIST ALL CLASSES (subject-offerings)
-    // (Admin => sees all)
-    // (Teacher => sees ONLY their own assigned classes)
-    // students_count now reflects the SHARED class_group roster, not this
-    // row alone — so every subject-offering of the same physical class
-    // shows the same student count.
-    // ─────────────────────────────
-
+    //List all classes with their student counts
     public function list(Request $request){
         $user = $request->user();
 
@@ -51,18 +43,12 @@ class ManageClassController extends Controller
         ]);
     }
 
-    // ─────────────────────────────
-    // ADD CLASS (subject-offering)
-    // ─────────────────────────────
-
+    //Add Class
     public function addClass(Request $request)
     {
         $request->validate([
             'class_name' => [
                 'required',
-                // Unique per (class_name + subject), NOT globally unique —
-                // lets the same class_name be added again with a different
-                // subject, e.g. "BS Zoology (Botony)" + "BS Zoology (ICT)".
                 Rule::unique('manage_classes', 'name')->where(function ($query) use ($request) {
                     return $query->where('subject', $request->subject);
                 }),
@@ -72,9 +58,6 @@ class ManageClassController extends Controller
             'status' => 'required|in:active,inactive',
         ]);
 
-        // Find or create the physical class group this subject-offering
-        // belongs to. Rows sharing the same class_name now share ONE
-        // class_group — and therefore ONE roster of students.
         $classGroup = ClassGroup::firstOrCreate(
             ['name' => $request->class_name],
             ['status' => $request->status]
@@ -86,7 +69,7 @@ class ManageClassController extends Controller
         $manageClass->class_group_id = $classGroup->id;
         $manageClass->teacher_id = $request->teacher_id;
         $manageClass->subject = $request->subject;
-        $manageClass->students_count = $request->students_count ?? 0; // legacy column, kept for compatibility
+        $manageClass->students_count = $request->students_count ?? 0; 
         $manageClass->status = $request->status;
 
         if ($manageClass->save()) {
@@ -103,9 +86,7 @@ class ManageClassController extends Controller
         ], 500);
     }
 
-    // ─────────────────────────────
-    // EDIT CLASS (GET SINGLE)
-    // ─────────────────────────────
+    //Edit class
     public function editClass($id)
     {
         $manageClass = ManageClass::with(['teacher', 'classGroup'])->find($id);
@@ -132,9 +113,7 @@ class ManageClassController extends Controller
         ]);
     }
 
-    // ─────────────────────────────
-    // UPDATE CLASS
-    // ─────────────────────────────
+    //Update class
     public function updateClass(Request $request, $id)
     {
         $request->validate([
@@ -158,8 +137,6 @@ class ManageClassController extends Controller
             ], 404);
         }
 
-        // Re-resolve (or create) the class group for this class_name, so
-        // the shared roster stays correct even if the class_name changes.
         $classGroup = ClassGroup::firstOrCreate(
             ['name' => $request->class_name],
             ['status' => $request->status]
@@ -190,9 +167,7 @@ class ManageClassController extends Controller
         ], 500);
     }
 
-    // ─────────────────────────────
-    // DELETE CLASS
-    // ─────────────────────────────
+    //Delete class
     public function deleteClass($id)
     {
         $manageClass = ManageClass::find($id);
@@ -212,9 +187,7 @@ class ManageClassController extends Controller
         ]);
     }
 
-    // ─────────────────────────────
-    // SEARCH CLASS
-    // ─────────────────────────────
+    //Search class by name
     public function searchClass($name)
     {
         $class = ManageClass::where("name", "like", "%$name%")->get();

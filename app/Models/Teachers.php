@@ -18,7 +18,7 @@ class Teachers extends Model
         'device_id',
     ];
 
-    //  Hide sensitive fields from API responses
+    //  Hide sensitive fields 
     protected $hidden = [
         'password',
     ];

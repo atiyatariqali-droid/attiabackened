@@ -35,8 +35,8 @@ class AttendanceController extends Controller
             ], 400);
         }
 
-        // Location check: must be within classroom radius (default 100m)
-        $radius = 100;
+        // Location check must be within classroom radius
+        $radius = 150;
         $distance = $this->calculateDistance(
             (float) $session->latitude,
             (float) $session->longitude,
@@ -90,11 +90,7 @@ class AttendanceController extends Controller
         return max(1, (int) round($presentCount * 0.20));
     }
 
-    // Restrict teacher-verification notifications to BS classes only.
-    // FIXED: previously matched any class name that did NOT contain
-    // INTER/FSC/FA, which let every non-BS class (MBA, ADP, MS, BBA, ...)
-    // through as well. Now it only matches class names that actually
-    // contain the standalone word "BS".
+    // Contain the standalone word "BS"
     private function isBsClass($classId)
 {
     $class = ManageClass::find($classId);
@@ -125,7 +121,7 @@ class AttendanceController extends Controller
         return $earthRadius * $c;
     }
 
-    // SAVE SESSION STUDENTS (bulk mark present)
+    // SAVE SESSION STUDENTS
     public function saveSessionStudents(Request $request)
     {
         $request->validate([
@@ -144,7 +140,7 @@ class AttendanceController extends Controller
         $attendanceDate = Carbon::parse($session->start_time)->toDateString();
         $classId        = $session->class_id;
 
-        // Step 1: Mark all students present
+        //Mark all students present
         $markedIds = [];
         foreach ($request->student_ids as $sid) {
             Attendance::updateOrCreate(
@@ -161,7 +157,7 @@ class AttendanceController extends Controller
             $markedIds[] = (int) $sid;
         }
 
-        // Step 2: Determine target users for verification
+        //Determine target users for verification
         $total            = count($markedIds);
         $notifiedStudents = [];
         $targetUserIds    = [];
@@ -179,12 +175,12 @@ class AttendanceController extends Controller
             $targetUserIds = array_slice($pool, 0, $notifyCount);
         }
 
-        // Step 3: Create confirmation requests and notifications
+        //Create confirmation requests and notifications
         $parentMode = \DB::table('system_settings')->where('key', 'parent_verification_mode')->value('value');
         $studentExpiryMinutes = ($parentMode === 'true' || $parentMode === '1' || $parentMode === 1) ? 1440 : 5;
 
         foreach ($targetUserIds as $chosenId) {
-            // Close any old pending requests for this user (cleanup)
+            // Close any old pending requests for this user
             \DB::table('confirmation_requests')
                 ->where('student_id', $chosenId)
                 ->where('status', 'pending')
@@ -228,7 +224,7 @@ class AttendanceController extends Controller
         ], 201);
     }
 
-    // SUBMIT ATTENDANCE BULK SAVE
+    // SUBMIT ATTENDANCE 
     public function submitAttendance(Request $request)
     {
         $request->validate([
@@ -250,8 +246,8 @@ class AttendanceController extends Controller
             return response()->json(['success' => false, 'message' => 'Session is not active'], 400);
         }
 
-        // Location check: must be within classroom radius (default 100m)
-        $radius = 100;
+        // Location check must be within classroom radius
+        $radius = 150;
         $distance = $this->calculateDistance(
             (float) $session->latitude,
             (float) $session->longitude,
@@ -316,7 +312,6 @@ class AttendanceController extends Controller
         $studentExpiryMinutes = ($parentMode === 'true' || $parentMode === '1' || $parentMode === 1) ? 1440 : 5;
 
         foreach ($targetUserIds as $chosenId) {
-            // Close any old pending requests
             \DB::table('confirmation_requests')
                 ->where('student_id', $chosenId)
                 ->where('status', 'pending')
@@ -381,7 +376,8 @@ class AttendanceController extends Controller
             'data'         => $notifications,
         ]);
     }
-
+             
+    // Mark all notifications as read for a student
     public function markNotificationsRead($studentId)
     {
         \DB::table('notifications')
@@ -392,7 +388,7 @@ class AttendanceController extends Controller
         return response()->json(['success' => true]);
     }
 
-    // STUDENT DASHBOARD SUMMARY (today's status + this month's counts)
+    // Student Dashboard Status
     public function getStudentDashboardStatus($studentId)
     {
         $today = Carbon::today()->toDateString();
@@ -430,7 +426,8 @@ class AttendanceController extends Controller
             ],
         ]);
     }
-
+  
+    // Session Report for Admin and Teacher
     public function sessionReport(Request $request)
     {
         $query = Session::with('teacher')->orderBy('created_at', 'desc');
@@ -466,6 +463,7 @@ class AttendanceController extends Controller
         ]);
     }
 
+    // Get active session
     public function getActiveSession($teacherId)
     {
         $session = Session::where('teacher_id', $teacherId)
@@ -480,7 +478,7 @@ class AttendanceController extends Controller
         ]);
     }
 
-    // ATTENDANCE REPORT (admin sees all, teacher filtered)
+    // Attendance Report for Admin and Teacher
     public function attendanceReport(Request $request)
     {
         $user = $request->user();

@@ -10,7 +10,7 @@ use Carbon\Carbon;
 
 class AdminReportController extends Controller
 {
-    // GET /api/admin/reports/stats?class_id=&teacher_id=&days=7
+    // GET Stats for Admin Dashboard
     public function getStats(Request $request)
     {
         $classId     = $request->query('class_id');
@@ -59,7 +59,7 @@ class AdminReportController extends Controller
         if ($studentName) $studentQuery->where('s.username', 'like', "%{$studentName}%");
         $totalStudents = $studentQuery->distinct('s.id')->count('s.id');
 
-        // Attendance Query (Querying attendance table directly)
+        // Attendance Query 
         $attendanceQuery = DB::table('attendance as a')
             ->join('users as s', 's.id', '=', 'a.student_id')
             ->leftJoin('attendance_sessions as sess', 'sess.id', '=', 'a.session_id');
@@ -115,7 +115,7 @@ class AdminReportController extends Controller
         ]);
     }
 
-    // GET /api/admin/reports/chart?class_id=&teacher_id=&days=7
+    // Get chart data for attendance trends
     public function getChartData(Request $request)
     {
         $classId     = $request->query('class_id');
@@ -173,7 +173,7 @@ class AdminReportController extends Controller
         return response()->json(['chart' => $data]);
     }
 
-    // GET /api/admin/reports/students?class_id=&teacher_id=&days=7
+    // Get summary report for students, teachers and classes
     public function getStudentsList(Request $request)
     {
         $classId     = $request->query('class_id');
@@ -182,7 +182,7 @@ class AdminReportController extends Controller
         $status      = $request->query('status');
         $sessionId   = $request->query('session_id');
         $studentId   = $request->query('student_id');
-        $studentIds  = $request->query('student_ids'); //for multi-student selection
+        $studentIds  = $request->query('student_ids'); 
         $studentName = $request->query('student_name');
         $date        = $request->query('date');
         $startDate   = $request->query('start_date');
@@ -202,13 +202,13 @@ class AdminReportController extends Controller
                 's.id as student_id',
                 's.username as student_name',
                 's.roll_no',
-                'cg.name as class_name', // student belongs to cohort
+                'cg.name as class_name', 
                 DB::raw('GROUP_CONCAT(DISTINCT t.username SEPARATOR ", ") as teacher_name')
             )
             ->groupBy('s.id', 's.username', 's.roll_no', 'cg.name');
 
         if ($classId) {
-            // Filter by specific subject offering
+            // Filter by specific subject 
             $studentQuery->where('c.id', $classId);
         }
         if ($teacherId) {
@@ -301,7 +301,7 @@ class AdminReportController extends Controller
         return response()->json(['students' => $result]);
     }
 
-    // GET /api/admin/reports/classes
+    // Get list of classes for dropdown
     public function getClasses()
     {
         $classes = DB::table('manage_classes')
@@ -311,7 +311,7 @@ class AdminReportController extends Controller
         return response()->json(['classes' => $classes]);
     }
 
-    // GET /api/admin/reports/teachers
+    // Get list of teachers for dropdown
     public function getTeachers()
     {
         $teachers = DB::table('users')
@@ -322,10 +322,9 @@ class AdminReportController extends Controller
         return response()->json(['teachers' => $teachers]);
     }
 
-    // GET /api/admin/reports/student/{id}
+    // Get student report details
     public function getStudentDetailReport(Request $request, $id)
     {
-        // Get student
         $student = DB::table('users as s')
             ->where('s.id', $id)
             ->where('s.role', 'student')
@@ -477,7 +476,7 @@ class AdminReportController extends Controller
         ]);
     }
 
-    // PUT /api/admin/reports/attendance/{id}
+    // Update Attendance
     public function updateAttendance(Request $request, $id)
     {
         $request->validate([
@@ -525,7 +524,7 @@ class AdminReportController extends Controller
         ]);
     }
 
-    // GET /api/admin/reports/teachers-summary
+    // Get summary report for teachers
     public function getTeachersSummaryReport(Request $request)
     {
         $classId = $request->query('class_id');
@@ -593,7 +592,7 @@ class AdminReportController extends Controller
         return response()->json(['teachers' => $result]);
     }
 
-    // GET /api/admin/reports/classes-summary
+    // Get summary report for classes
     public function getClassesSummaryReport(Request $request)
     {
         $days = (int) $request->query('days', 7);
@@ -660,13 +659,9 @@ class AdminReportController extends Controller
         return response()->json(['classes' => $result]);
     }
 
-    // GET /api/admin/reports/sessions-summary
-    // (TeacherReportController forces teacher_id and calls this same method)
+    // Get summary report for sessions
     public function getSessionsSummaryReport(Request $request)
     {
-        // "Session kab hua" batane wala column dhoondo.
-        // created_at NULL ho sakta hai (agar sessions DB::table()->insert() se bane hon
-        // bina timestamps ke) — is liye jo date-type columns maujood hain un par COALESCE.
         $sessionColumns = collect(Schema::getColumns('attendance_sessions'))->keyBy('name');
         $dateLikeTypes  = ['datetime', 'timestamp', 'date'];
         $candidates     = [];
@@ -717,7 +712,6 @@ class AdminReportController extends Controller
                 Carbon::parse($endDate)->toDateString(),
             ]);
         } else {
-            // days=1 => sirf aaj, days=7 => aaj samet pichhle 7 din (chart ke sath consistent)
             $sessionsQuery->whereRaw("DATE($whenExpr) >= ?", [now()->subDays($days - 1)->toDateString()]);
         }
 
@@ -762,8 +756,7 @@ class AdminReportController extends Controller
         return response()->json(['sessions' => $result]);
     }
 
-    // Teacher-presence verdict for one session (confirmation popup responses).
-    // Kisi bhi table/column ka masla ho to poori list crash nahi hogi.
+    // Determine the session verdict based on confirmation requests and responses
     private function sessionVerdict($sessionId): string
     {
         try {

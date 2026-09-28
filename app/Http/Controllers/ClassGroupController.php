@@ -8,9 +8,7 @@ use Illuminate\Http\Request;
 
 class ClassGroupController extends Controller
 {
-    // List all physical classes (class groups). Use this — NOT /classes —
-    // wherever a student is being enrolled or moved, since a student
-    // belongs to a class group, not to one specific subject-offering.
+    // List all class groups with their student counts
     public function list()
     {
         $groups = ClassGroup::all()->map(function ($group) {

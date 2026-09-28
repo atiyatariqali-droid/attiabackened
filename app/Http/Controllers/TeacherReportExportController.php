@@ -31,17 +31,15 @@ class TeacherReportExportController extends AdminReportExportController
         }
     }
 
-    // GET /api/teacher/reports/export/pdf
-    // Handles: full class report AND multiple-selected-students report
-    // (pass ?student_ids=1,2,3 in query to restrict to selected students)
+    //Export pdf for all classes
     public function exportClassPdf(Request $request)
     {
         $teacherId = $this->authTeacherId($request);
-        $request->query->set('teacher_id', $teacherId); // force scope
-        return parent::exportPdf($request); // reuses AdminReportExportController logic fully
+        $request->query->set('teacher_id', $teacherId);
+        return parent::exportPdf($request);
     }
 
-    // GET /api/teacher/reports/export/excel
+    //Export excel for all classes
     public function exportClassExcel(Request $request)
     {
         $teacherId = $this->authTeacherId($request);
@@ -49,7 +47,7 @@ class TeacherReportExportController extends AdminReportExportController
         return parent::exportExcel($request);
     }
 
-    // GET /api/teacher/reports/student/{id}/export/pdf
+    //Export pdf for a student
     public function exportStudentPdf(Request $request, $id)
     {
         $teacherId = $this->authTeacherId($request);
@@ -57,7 +55,7 @@ class TeacherReportExportController extends AdminReportExportController
         return parent::exportStudentPdf($request, $id);
     }
 
-    // GET /api/teacher/reports/student/{id}/export/excel
+    //Export excel for a student
     public function exportStudentExcel(Request $request, $id)
     {
         $teacherId = $this->authTeacherId($request);

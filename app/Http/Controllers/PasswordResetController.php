@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Validator;
 
 class PasswordResetController extends Controller
 {
-    // STEP 1: SEND OTP TO EMAIL
+    //Send OTP to email for password reset
     public function forgotPassword(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -56,7 +56,7 @@ class PasswordResetController extends Controller
         return response()->json(['success' => true, 'message' => 'OTP sent to your email']);
     }
 
-    // STEP 2: VERIFY OTP
+    //Verify OTP
     public function verifyOtp(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -86,7 +86,7 @@ class PasswordResetController extends Controller
         return response()->json(['success' => true, 'message' => 'OTP verified']);
     }
 
-    // STEP 3: RESET PASSWORD
+    //Reset password after OTP verification
     public function resetPassword(Request $request)
     {
         $validator = Validator::make($request->all(), [

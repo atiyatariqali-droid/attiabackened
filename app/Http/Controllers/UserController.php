@@ -13,13 +13,11 @@ class UserController extends Controller
 {
     public function login(Request $request)
     {
-        // validation don’t skip this
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
             'device_id' => 'required',
         ]);
-   //user find ky liye
         $user = User::where("email", $request->email)->first();
 
         if (!$user) {
@@ -29,7 +27,7 @@ class UserController extends Controller
             ], 401);
         }
 
-        // 3. Password check
+        //Password check
     if (!Hash::check($request->password, $user->password)) {
         return response()->json([
             'success' => false,
@@ -79,7 +77,7 @@ class UserController extends Controller
     }
 
 
-    // 4. Device ID check (dynamically bind device ID on first login if null)
+    //Device ID check
     if ($user->role !== 'student') {
         if ($user->device_id) {
             if ($user->device_id !== $request->device_id) {

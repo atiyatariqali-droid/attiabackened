@@ -28,7 +28,6 @@ class ManageClassFactory extends Factory
             'subject' => $this->faker->randomElement($subjects),
             'students_count' => $this->faker->numberBetween(10, 50),
             'status' => $this->faker->randomElement(['active', 'inactive', 'scheduled']),
-            // Will be overridden in seeder if needed, or defaults to a random teacher
             'teacher_id' => User::where('role', 'teacher')->inRandomOrder()->first()->id ?? User::factory()->create(['role' => 'teacher'])->id,
         ];
     }

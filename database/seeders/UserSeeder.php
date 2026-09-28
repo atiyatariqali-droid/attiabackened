@@ -111,7 +111,7 @@ class UserSeeder extends Seeder
                 'role'               => 'student',
                 'status'             => 1,
                 'class_id'           => 2,
-                'roll_no'            => '2001',            // FIX: missing comma added here
+                'roll_no'            => '2001', 
                 'device_id' => null,
             ]
         );
@@ -130,8 +130,6 @@ class UserSeeder extends Seeder
             ]
         );
 
-        // FIX: changed User::create to updateOrCreate to prevent duplicate errors
-        //      if seeder is run more than once
         User::updateOrCreate(
             ['email' => 'teacher1@gmail.com'],
             [

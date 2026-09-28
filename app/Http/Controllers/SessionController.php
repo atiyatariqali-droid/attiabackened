@@ -22,7 +22,7 @@ class SessionController extends Controller
             'longitude'  => 'required|numeric',
         ]);
 
-        // Step 1: Get campus lat/lng from system_settings table
+        //Get  lat/lng from system settings table
         $campusLat = (float) SystemSetting::where('key', 'school_latitude')->value('value');
         $campusLng = (float) SystemSetting::where('key', 'school_longitude')->value('value');
          //device 
@@ -46,7 +46,7 @@ class SessionController extends Controller
             ], 500);
         }
 
-        // Step 2: Calculate distance between teacher and campus
+        //Calculate distance between teacher and campus
         $distance = $this->calculateDistance(
             (float) $request->latitude,
             (float) $request->longitude,
@@ -54,8 +54,8 @@ class SessionController extends Controller
             $campusLng
         );
 
-        // Step 3: Must be within 150 meters
-        $allowedRadius = 150; // meters — validation only, not stored in DB
+        //Must be within 150 meters
+        $allowedRadius = 150; 
         if ($distance > $allowedRadius) {
             return response()->json([
                 'success'  => false,
@@ -64,7 +64,6 @@ class SessionController extends Controller
             ], 403);
         }
 
-        // Step 4 & 5: Check if class already has active session and create it (in transaction)
         return DB::transaction(function () use ($class_id, $request) {
             $existing = Session::where('class_id', $class_id)
                                ->where('status', 'active')
@@ -78,11 +77,11 @@ class SessionController extends Controller
                 ], 400);
             }
 
-            // Step 5: Create session
+            //Create session
             $session = Session::create([
                 'teacher_id' => $request->teacher_id,
                 'class_id'   => $class_id,
-                'start_time' => Carbon::now(),
+                'end_time'   => Carbon::now()->addMinutes(45),
                 'latitude'   => $request->latitude,
                 'longitude'  => $request->longitude,
                 'status'     => 'active'
@@ -96,7 +95,7 @@ class SessionController extends Controller
         });
     }
 
-    // Fixed Haversine formula - calculates distance in meters
+    // Fixed Haversine formula  calculates distance in meters
     private function calculateDistance($teacherLat, $teacherLng, $schoolLat, $schoolLng)
     {
         $earthRadius = 6371; // KM
@@ -132,9 +131,6 @@ class SessionController extends Controller
             ], 404);
         }
 
-        // The session is tied to a specific subject-offering (manage_classes
-        // row). To get its roster, go through that row's class_group — the
-        // shared physical class — since students.class_id now points there.
         $manageClass = ManageClass::find($session->class_id);
         if (!$manageClass) {
             return response()->json([
@@ -154,7 +150,6 @@ class SessionController extends Controller
         // Fetch existing attendance records for this session
         $attendances = \App\Models\Attendance::where('session_id', $id)->get()->keyBy('student_id');
 
-        // Attach status to each student
         $studentsWithStatus = $students->map(function ($student) use ($attendances) {
             $att = $attendances->get($student->id);
             $studentArray = $student->toArray();
@@ -168,7 +163,7 @@ class SessionController extends Controller
         ]);
     }
 
-    // NEW: GET ONLY MARKED STUDENTS FOR THIS SESSION (used by MarkAttendanceScreen)
+    //Get marked students for a session
     public function getMarkedStudents($id)
     {
         $session = Session::find($id);
@@ -199,11 +194,13 @@ class SessionController extends Controller
         ]);
     }
 
+    // logout method
     public function logout($id)
     {
         return response()->json(['success' => true, 'message' => 'Session logout working', 'id' => $id]);
     }
 
+    // Active sessions
     public function activeSessions()
     {
         return response()->json([
@@ -213,14 +210,13 @@ class SessionController extends Controller
     }
 
 
-    // GET A TEACHER'S SESSIONS
+    // Get sessions for a specific teacher
     public function getTeacherSessions($teacher_id)
     {
         $sessions = Session::where('teacher_id', $teacher_id)
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Optionally, attach class names to the sessions
         foreach ($sessions as $session) {
             $class = ManageClass::find($session->class_id);
             $session->class_name = $class ? ($class->class_name ?? $class->name) : 'Unknown';
@@ -231,6 +227,8 @@ class SessionController extends Controller
             'data'    => $sessions
         ]);
     }
+
+    // Get the active session for a specific teacher
       public function getActiveSession($teacherId)
       {
         $session=Session::where('teacher_id',$teacherId)->where('status','active')->latest('created_at')->first();
@@ -240,7 +238,7 @@ class SessionController extends Controller
             'data' =>$session
         ]);
       }
-    // END SESSION (Mark as inactive)
+    // End session method
     public function endSession($id)
     {
         $session = Session::find($id);
@@ -249,7 +247,7 @@ class SessionController extends Controller
         }
 
         $session->status = 'inactive';
-        $session->end_time = Carbon::now(); // NEW: record when the session actually ended
+        $session->end_time = Carbon::now(); 
         $session->save();
 
         return response()->json([
@@ -259,7 +257,7 @@ class SessionController extends Controller
         ]);
     }
 
-    // UPDATE SESSION STATUS
+    // Update session status
     
     public function updateSessionStatus(Request $request, $id)
     {
@@ -271,7 +269,6 @@ class SessionController extends Controller
         }
 
         $session->status = $request->status;
-        // Keep end_time consistent with status
         if ($request->status === 'inactive') {
             $session->end_time = Carbon::now();
         } else {
@@ -286,7 +283,7 @@ class SessionController extends Controller
         ]);
     }
 
-    // DELETE SESSION
+    // Delete session method
 
     public function deleteSession($id)
     {
@@ -302,6 +299,8 @@ class SessionController extends Controller
             'message' => 'Session deleted successfully'
         ]);
     }
+
+    // Session report for admin dashboard
     public function sessionReport(Request $request)
 {
     $query = Session::with('teacher')->orderBy('created_at', 'desc');
@@ -336,6 +335,8 @@ class SessionController extends Controller
         'data'    => $sessions,
     ]);
 }
+
+// Session report for admin dashboard
 public function reportDashboard(Request $request)
 {
     $today = Carbon::today();
@@ -368,7 +369,7 @@ public function reportDashboard(Request $request)
     }
     $totalPresent = $totalPresentQuery->count();
 
-    // Flagged = sessions ended in under 2 minutes (suspicious short sessions)
+    // sessions ended in under 2 minutes (suspicious short sessions)
     $flaggedQuery = Session::whereNotNull('end_time')
         ->whereRaw('TIMESTAMPDIFF(SECOND, start_time, end_time) < 120');
     if ($isTeacher) {
@@ -450,7 +451,6 @@ public function reportDashboard(Request $request)
             'created_at' => optional($a->created_at)->toISOString(),
         ]);
 
-    // Merge and sort by created_at desc
     $logs = $recentSessions->concat($recentAttendance)
         ->sortByDesc('created_at')
         ->values();
@@ -530,7 +530,6 @@ public function index(Request $request)
     $sessions = $query->latest('created_at')
         ->get()
         ->map(function ($session) {
-            // attach class_name so the admin UI can display it
             $class = ManageClass::find($session->class_id);
             $className = $class ? ($class->class_name ?? $class->name) : 'Unknown';
 
@@ -555,7 +554,7 @@ public function index(Request $request)
         'data'    => $sessions,
     ]);
 }
-//TOGGLA method
+//Toggle status method
 public function toggleStatus(Request $request, $id)
 {
     $session = Session::find($id);
@@ -567,10 +566,7 @@ public function toggleStatus(Request $request, $id)
         ], 404);
     }
 
-    // active <-> completed toggle
     $session->status = $session->status === 'active' ? 'inactive' : 'active';
-
-    // Keep end_time consistent with the new status
     if ($session->status === 'inactive') {
         $session->end_time = Carbon::now();
     } else {

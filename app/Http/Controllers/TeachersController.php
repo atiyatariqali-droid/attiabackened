@@ -7,9 +7,7 @@ use App\Models\Teachers;
 
 class TeachersController extends Controller
 {
-    // ─────────────────────────────
-    // LIST ALL TEACHERS
-    // ─────────────────────────────
+    //List all teachers
     public function list()
     {
         return response()->json([
@@ -18,20 +16,16 @@ class TeachersController extends Controller
         ]);
     }
 
-    // ─────────────────────────────
-    // ADD TEACHER
-    // ─────────────────────────────
+    //Add teacher
     public function addTeacher(Request $request)
     {
-        // ✅ FIX 1: Added device_mac_address to validation
-        // ✅ FIX 2: Explicit 422 response with validation errors so Flutter can debug
         $validated = $request->validate([
             'username'           => 'required|string|max:255',
             'email'              => 'required|email|unique:users,email',
             'password'           => 'required|min:6',
             'phone'              => 'required|regex:/^[0-9]{11}$/',
             'device_id' => 'nullable|string|max:255',
-            'status'    => 'nullable|in:0,1',   // NEW
+            'status'    => 'nullable|in:0,1',   
             'address' => 'required'
         ], [
             'phone.required' => 'Please enter the correct number',
@@ -45,8 +39,8 @@ class TeachersController extends Controller
         $teacher->email              = $validated['email'];
         $teacher->password           = bcrypt($validated['password']);
         $teacher->phone              = $validated['phone'] ?? null;
-        $teacher->role               = 'teacher';   // always forced server-side
-        $teacher->status             = $validated['status'] ?? 1;   // active by default, but respects incoming value
+        $teacher->role               = 'teacher';  
+        $teacher->status             = $validated['status'] ?? 1;
         $teacher->address            = $validated['address'];
         $teacher->device_id = $validated['device_id'] ?? null;
 
@@ -54,7 +48,7 @@ class TeachersController extends Controller
             return response()->json([
                 "success" => true,
                 "message" => "Teacher added successfully",
-                "data"    => $teacher   // ✅ return created teacher so Flutter can use the id
+                "data"    => $teacher 
             ], 201);
         }
 
@@ -64,9 +58,7 @@ class TeachersController extends Controller
         ], 500);
     }
 
-    // ─────────────────────────────
-    // GET SINGLE TEACHER (EDIT)
-    // ─────────────────────────────
+    //Edit teacher 
     public function editTeacher($id)
     {
         $teacher = Teachers::where('id', $id)
@@ -86,9 +78,7 @@ class TeachersController extends Controller
         ]);
     }
 
-    // ─────────────────────────────
-    // UPDATE TEACHER
-    // ─────────────────────────────
+    //Update teacher
     public function updateTeacher(Request $request, $id)
     {
         $teacher = Teachers::where('id', $id)
@@ -102,9 +92,6 @@ class TeachersController extends Controller
             ], 404);
         }
 
-        // ✅ FIX 4: unique rule now correctly ignores the current teacher's own row
-        //           using the actual DB id — prevents false unique email validation failure
-        // ✅ FIX 5: device_id added to validation
         $validated = $request->validate([
             'username'  => 'required|string|max:255',
             'email'     => 'required|email|unique:users,email,' . $teacher->id,
@@ -117,7 +104,6 @@ class TeachersController extends Controller
             'phone.regex'    => 'Please enter the correct number',
         ]);
 
-        // ✅ FIX 6: Build update array from validated data only
         $data = [
             'username'  => $validated['username'],
             'email'     => $validated['email'],
@@ -126,7 +112,6 @@ class TeachersController extends Controller
             'status'    => $validated['status'] ?? $teacher->status,
         ];
 
-        // ✅ Only update password if provided
         if (!empty($validated['password'])) {
             $data['password'] = bcrypt($validated['password']);
         }
@@ -136,13 +121,11 @@ class TeachersController extends Controller
         return response()->json([
             "success" => true,
             "message" => "Teacher updated successfully",
-            "data"    => $teacher->fresh()  // return updated record
+            "data"    => $teacher->fresh() 
         ]);
     }
 
-    // ─────────────────────────────
-    // DELETE TEACHER
-    // ─────────────────────────────
+    //Delete teacher
     public function deleteTeacher($id)
     {
         $teacher = Teachers::where('id', $id)
@@ -164,9 +147,7 @@ class TeachersController extends Controller
         ]);
     }
 
-    // ─────────────────────────────
-    // SEARCH TEACHER
-    // ─────────────────────────────
+    //Search teacher
     public function searchTeacher($username)
     {
         $teachers = Teachers::where('role', 'teacher')
@@ -186,9 +167,7 @@ class TeachersController extends Controller
         ]);
     }
 
-    // ─────────────────────────────
-    // SELF-REGISTER TEACHER (PENDING)
-    // ─────────────────────────────
+    //Register teacher (self-registration)
     public function registerTeacher(Request $request)
     {
         $validated = $request->validate([
@@ -208,7 +187,7 @@ class TeachersController extends Controller
         $teacher->password = bcrypt($validated['password']);
         $teacher->phone    = $validated['phone'] ?? null;
         $teacher->role     = 'teacher';
-        $teacher->status   = 0; // pending by default for self-registration!
+        $teacher->status   = 0;
         $teacher->device_id = $validated['device_id'];
 
         if ($teacher->save()) {
@@ -225,9 +204,7 @@ class TeachersController extends Controller
         ], 500);
     }
 
-    // ─────────────────────────────
-    // APPROVE TEACHER
-    // ─────────────────────────────
+    //Approve teacher (admin)
     public function approve($id)
     {
         $teacher = Teachers::where('id', $id)

@@ -6,13 +6,12 @@ use App\Models\SystemSetting;
 
 class SystemSettingController extends Controller
 {
-    // GET /api/settings
     public function index() {
         $settings = SystemSetting::all();
         return response()->json(['success' => true, 'data' => $settings]);
     }
 
-    // POST /api/settings
+    //Save
     public function store(Request $request) {
         $request->validate([
             'key' => 'required|unique:system_settings,key',
@@ -24,14 +23,14 @@ class SystemSettingController extends Controller
         return response()->json(['success' => true, 'data' => $setting], 201);
     }
 
-    // GET /api/settings/{id}
+    //Show
     public function show($id) {
         $setting = SystemSetting::find($id);
         if(!$setting) return response()->json(['success' => false, 'message' => 'Not found'], 404);
         return response()->json(['success' => true, 'data' => $setting]);
     }
 
-    // PUT /api/settings/{id}
+    //Update
     public function update(Request $request, $id) {
         $setting = SystemSetting::findOrFail($id);
         $setting->update([
@@ -44,7 +43,7 @@ class SystemSettingController extends Controller
         ]);
     }
 
-    // DELETE /api/settings/{id}
+    //Delete
     public function destroy($id) {
         $setting = SystemSetting::find($id);
         if(!$setting) return response()->json(['success' => false, 'message' => 'Not found'], 404);

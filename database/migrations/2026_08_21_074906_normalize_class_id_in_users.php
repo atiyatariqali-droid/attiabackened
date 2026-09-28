@@ -12,13 +12,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // 1. Add class_id to users
+        //Add class_id to users
         Schema::table('users', function (Blueprint $table) {
             $table->unsignedBigInteger('class_id')->nullable()->after('status');
             $table->foreign('class_id')->references('id')->on('manage_classes')->nullOnDelete();
         });
 
-        // 2. Map existing students to class_id
+        //Map existing students to class_id
         $users = DB::table('users')->where('role', 'student')->whereNotNull('class')->get();
         foreach ($users as $user) {
             // Find class by name or class_name
@@ -32,7 +32,7 @@ return new class extends Migration
             }
         }
 
-        // 3. Drop 'class' and 'teacher_id' from users
+        // Drop class and teacher_id from users
         Schema::table('users', function (Blueprint $table) {
             if (Schema::hasColumn('users', 'class')) {
                 $table->dropColumn('class');
@@ -43,8 +43,7 @@ return new class extends Migration
             }
         });
 
-        // 4. Drop redundant 'class_name' from manage_classes
-        // Note: Make sure to map data if 'name' was empty.
+        //Drop redundant 'class_name' from manage_classes
         $classes = DB::table('manage_classes')->get();
         foreach ($classes as $c) {
             if (empty($c->name) && !empty($c->class_name)) {

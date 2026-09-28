@@ -20,7 +20,7 @@ class TeacherProfileController extends Controller
     {
         $teacher = $request->user();
 
-        // NEW: fetch all classes assigned to this teacher (with subject + class name)
+        // Fetch all classes assigned to this teacher (with subject + class name)
         $assignedClasses = ManageClass::where('teacher_id', $teacher->id)
             ->get()
             ->map(fn($c) => [
@@ -46,9 +46,7 @@ class TeacherProfileController extends Controller
         ]);
     }
 
-    /**
-     * PUT /api/teacher/profile
-     */
+    //Update profile
     public function update(UpdateProfileRequest $request): JsonResponse
     {
         $teacher = $request->user();
@@ -68,9 +66,7 @@ class TeacherProfileController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/teacher/profile/change-password
-     */
+    //Change password
     public function changePassword(ChangePasswordRequest $request): JsonResponse
     {
         $teacher = $request->user();
@@ -91,11 +87,7 @@ class TeacherProfileController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/teacher/profile/change-email
-     * FIXED: password check removed — only current_email (must match) + new_email are required now.
-     * ChangeEmailRequest already validates that current_email matches the logged-in teacher's email.
-     */
+    //Change email
     public function changeEmail(ChangeEmailRequest $request): JsonResponse
     {
         $teacher = $request->user();
@@ -108,9 +100,7 @@ class TeacherProfileController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/teacher/logout
-     */
+    //Logout from current device
     public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
@@ -121,9 +111,7 @@ class TeacherProfileController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/teacher/logout-all
-     */
+    //Logout from all devices
     public function logoutAll(Request $request): JsonResponse
     {
         $request->user()->tokens()->delete();

@@ -19,15 +19,12 @@ class ConfirmationController extends Controller
         return max(1, (int) round($presentCount * 0.20));
     }
 
-    // Restrict teacher-verification notifications to BS classes only.
-    // Shared rule with AttendanceController — matches class names that
-    // contain the standalone word "BS" (e.g. "BS Computer Science", "BS-IT"),
-    // and excludes things like "MBS" or "BBS" via the word boundary.
+    // Restrict teacher verification notifications to BS classes only
     private function isBsClass($classId)
     {
         $class = ManageClass::find($classId);
         if (!$class || empty($class->class_name)) {
-            return false; // class not found -> don't notify
+            return false; 
         }
         $name = strtoupper(trim($class->class_name));
         return (bool) preg_match('/\bBS\b/', $name);
@@ -48,7 +45,6 @@ class ConfirmationController extends Controller
             ], 400);
         }
 
-        // ── Restrict this notification to BS classes only (shared rule with AttendanceController) ──
         if (!$this->isBsClass($session->class_id)) {
             return response()->json([
                 'success' => false,
@@ -71,8 +67,8 @@ class ConfirmationController extends Controller
         $targetUserIds = [];
         $message = 'Please confirm: is your teacher present in the classroom?';
 
-        // Only sends a notification if at least 1 student is present/late.
-        // Zero-present sessions get NO notification at all (nothing to verify).
+        // Only sends a notification if at least 1 student is present 
+        // Zero present sessions get NO notification at all
         $targetUserIds = [];
         if ($totalPresent > 0) {
             $pool = $markedStudentIds;
@@ -120,7 +116,7 @@ class ConfirmationController extends Controller
         ]);
     }
 
-    // ── FIXED: directly filter by student_id, no notification dependency ──
+    //Get pending confirmation request for a student
     public function getPendingConfirmation(Request $request)
     {
         $request->validate(['student_id' => 'required|integer']);
@@ -156,6 +152,7 @@ class ConfirmationController extends Controller
         ]);
     }
 
+    // Submit a student's response to a confirmation request
     public function submitResponse(Request $request)
     {
         $request->validate([
@@ -274,6 +271,7 @@ class ConfirmationController extends Controller
         ]);
     }
 
+    // Get the directory of students who were sent a confirmation request for a specific session, along with their responses
     public function getResponseDirectory(Request $request)
     {
         $request->validate(['session_id' => 'required|integer']);
@@ -343,9 +341,7 @@ class ConfirmationController extends Controller
         ]);
     }
 
-    // ── FIXED: Admin overview — one row per session, deduped to the latest
-    // confirmation_request per student, and pending clamped so it can never
-    // go negative (which was causing >100% "Present" percentages) ──
+    //Get an overview of all confirmation requests and their responses for admin users
     public function getAdminOverview(Request $request)
     {
         $sessionIds = \DB::table('confirmation_requests')
@@ -368,8 +364,6 @@ class ConfirmationController extends Controller
             $class   = \DB::table('manage_classes')->where('id', $session->class_id)->first();
             $teacher = \DB::table('users')->where('id', $session->teacher_id)->first();
 
-            // FIX: keep only the latest confirmation_request per student for this
-            // session, so re-invites / stale closed duplicates don't skew the count.
             $requestsForSession = \DB::table('confirmation_requests')
                 ->where('session_id', $sessionId)
                 ->orderByDesc('created_at')
@@ -377,9 +371,6 @@ class ConfirmationController extends Controller
                 ->unique('student_id');
 
             $requestIds = $requestsForSession->pluck('id');
-
-            // FIX: also dedupe responses by request_id as a safety net, in case
-            // of any leftover duplicate rows in confirmation_responses.
             $responses = \DB::table('confirmation_responses')
                 ->whereIn('request_id', $requestIds)
                 ->get()
@@ -389,8 +380,6 @@ class ConfirmationController extends Controller
             $noCount        = $responses->where('response', 'no')->count();
             $totalSelected  = $requestsForSession->count();
             $totalResponded = $yesCount + $noCount;
-
-            // FIX: clamp instead of plain subtraction so pending can never be negative.
             $pendingCount = max(0, $totalSelected - $totalResponded);
 
             $verdict = 'Awaiting responses';

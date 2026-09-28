@@ -24,7 +24,6 @@ class ChangeEmailRequest extends FormRequest
                 'required',
                 'email',
                 'max:255',
-                // Unique across users table, excluding current admin
                 Rule::unique('users', 'email')->ignore($this->user()->id),
             ],
         ];
@@ -41,9 +40,7 @@ class ChangeEmailRequest extends FormRequest
         ];
     }
 
-    /**
-     * Extra check: current_email must actually match the logged-in user's email.
-     */
+    //check current email must actually match the logged-in user's email
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {

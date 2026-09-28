@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 
 class TeacherReportController extends Controller
 {
-    // Resolve authenticated teacher id — 403 if not a teacher
+    // Resolve authenticated teacher id  403 if not a teacher
     private function authTeacherId(Request $request)
     {
         $user = $request->user();
@@ -17,7 +17,7 @@ class TeacherReportController extends Controller
         return $user->id;
     }
 
-    // Verify a student belongs to this teacher — 403 otherwise
+    // Verify a student belongs to this teacher 403 otherwise
     private function assertOwnsStudent($teacherId, $studentId)
     {
         $belongs = DB::table('users')
@@ -33,7 +33,7 @@ class TeacherReportController extends Controller
         }
     }
 
-    // GET /api/teacher/reports/stats
+    //Stats for the logged-in teacher
     public function getMyStats(Request $request)
     {
         $teacherId = $this->authTeacherId($request);
@@ -43,17 +43,17 @@ class TeacherReportController extends Controller
         return $admin->getStats($request);
     }
 
-    // GET /api/teacher/reports/students  (supports class, student_id, student_ids, date range filters)
+    // Get all students 
     public function getMyStudents(Request $request)
     {
         $teacherId = $this->authTeacherId($request);
-        $request->query->set('teacher_id', $teacherId); // force scope
+        $request->query->set('teacher_id', $teacherId); 
 
         $admin = new AdminReportController();
         return $admin->getStudentsList($request);
     }
 
-    // GET /api/teacher/reports/student/{id}
+    //Student detail report for a student 
     public function getStudentDetailReport(Request $request, $id)
     {
         $teacherId = $this->authTeacherId($request);
@@ -63,11 +63,11 @@ class TeacherReportController extends Controller
         return $admin->getStudentDetailReport($request, $id);
     }
 
-    // GET /api/teacher/reports/chart
+    //Chart data
     public function getChartData(Request $request)
     {
         $teacherId = $this->authTeacherId($request);
-        $request->query->set('teacher_id', $teacherId); // force scope
+        $request->query->set('teacher_id', $teacherId);
 
         $admin = new AdminReportController();
         return $admin->getChartData($request);
@@ -76,7 +76,7 @@ class TeacherReportController extends Controller
     public function getSessionsSummaryReport(Request $request)
     {
         $teacherId = $this->authTeacherId($request);
-        $request->query->set('teacher_id', $teacherId); // force scope
+        $request->query->set('teacher_id', $teacherId); 
         $admin = new AdminReportController();
         return $admin->getSessionsSummaryReport($request);
     }
@@ -84,7 +84,7 @@ class TeacherReportController extends Controller
     public function getClassesSummaryReport(Request $request)
     {
         $teacherId = $this->authTeacherId($request);
-        $request->query->set('teacher_id', $teacherId); // force scope
+        $request->query->set('teacher_id', $teacherId); 
         $admin = new AdminReportController();
         return $admin->getClassesSummaryReport($request);
     }

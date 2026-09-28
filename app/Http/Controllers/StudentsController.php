@@ -9,24 +9,20 @@ use App\Models\ClassGroup;
 
 class StudentsController extends Controller
 {
-    // ─────────────────────────────
-    // LIST ALL STUDENTS (Filtered for Teacher, All for Admin)
-    // ─────────────────────────────
+    //List all students
     function list(Request $request){
         $user = $request->user();
-        $statusFilter = $request->query('status', 'approved'); // 'approved' | 'pending' | 'all'
+        $statusFilter = $request->query('status', 'approved');
 
         $query = Students::where('role', 'student');
 
         if ($statusFilter === 'pending') {
-            // Pending students are shown as-is, with no class filtering at all
             $query->where('status', 0);
 
         } elseif ($statusFilter === 'all') {
-            // No status filter, but keep the existing teacher class restriction
             $this->applyTeacherClassFilter($query, $user);
 
-        } else { // 'approved' (default) — unchanged behavior
+        } else {
             $query->where('status', 1);
             $this->applyTeacherClassFilter($query, $user);
         }
@@ -37,7 +33,7 @@ class StudentsController extends Controller
         ]);
     }
 
-    // Small helper so the class-restriction logic isn't duplicated
+    // Apply teacher class filter to the query if the user is a teacher
     private function applyTeacherClassFilter($query, $user)
     {
         if ($user && $user->role === 'teacher') {
@@ -57,9 +53,7 @@ class StudentsController extends Controller
         }
     }
 
-    // ─────────────────────────────
-    // APPROVE STUDENT (pending -> active)
-    // ─────────────────────────────
+    //Approve student
     function approveStudent($id){
         $student = Students::where('id', $id)->where('role', 'student')->first();
 
@@ -80,9 +74,7 @@ class StudentsController extends Controller
     }
 
 
-    // ─────────────────────────────
-    // HELPER: Next available roll number (global max + 1, no gap-fill)
-    // ─────────────────────────────
+    //Next available roll number
     private function getNextRollNo()
     {
         $max = \DB::table('users')
@@ -92,9 +84,7 @@ class StudentsController extends Controller
         return (string) (($max ?? 0) + 1);
     }
 
-    // ─────────────────────────────
-    // GET NEXT AVAILABLE ROLL NUMBER (for auto-fill on Add Student form)
-    // ─────────────────────────────
+    //Get next available roll number (for auto-fill on Add Student form)
     public function nextRollNo()
     {
         return response()->json([
@@ -103,11 +93,7 @@ class StudentsController extends Controller
         ]);
     }
 
-    // ─────────────────────────────
-    // ADD STUDENT
-    // NOTE: class_id now targets class_groups.id (the physical class),
-    // NOT a specific manage_classes (subject-offering) row.
-    // ─────────────────────────────
+    //Add student 
     function addStudent(Request $request){
         $request->validate([
             'username' => 'required',
@@ -138,7 +124,6 @@ if (!$userRole) {
             $classId = ClassGroup::where('name', $request->class)->value('id');
         }
 
-        // Auto-assign roll_no agar frontend se nahi bheja gaya (max+1, global)
         $rollNo = $request->filled('roll_no') ? $request->roll_no : $this->getNextRollNo();
 
         $student = new Students();
@@ -158,7 +143,6 @@ if (!$userRole) {
                 ]);
             }
         } catch (\Illuminate\Database\QueryException $e) {
-            // Race-condition fallback: DB unique constraint hit ho gaya
             if ((int) $e->getCode() === 23000) {
                 return response()->json([
                     "success" => false,
@@ -174,9 +158,7 @@ if (!$userRole) {
         ]);
     }
 
-    // ─────────────────────────────
-    // GET SINGLE STUDENT (EDIT)
-    // ─────────────────────────────
+    //Edit student
     function editStudent($id){
         $student = Students::where('id', $id)->where('role', 'student')->first();
 
@@ -187,9 +169,6 @@ if (!$userRole) {
             ]);
         }
 
-        // Attendance rows still reference the specific manage_classes
-        // (subject-offering) row they were marked under, so this join is
-        // unchanged — it's independent of the class_group restructuring.
         $attendances = \DB::table('attendance as a')
             ->where('a.student_id', $id)
             ->leftJoin('manage_classes as c', 'c.id', '=', 'a.class_id')
@@ -205,9 +184,7 @@ if (!$userRole) {
         ]);
     }
 
-    // ─────────────────────────────
-    // UPDATE STUDENT
-    // ─────────────────────────────
+    //Update student
     function updateStudent(Request $request, $id){
         $student = Students::where('id', $id)->where('role', 'student')->first();
     
@@ -266,9 +243,7 @@ if (!$userRole) {
             "message" => "Student updated successfully"
         ]);
     }
-    // ─────────────────────────────
-    // DELETE STUDENT
-    // ─────────────────────────────
+    //Delete student
     function deleteStudent($id){
         $student = Students::where('id', $id)->where('role', 'student')->first();
 
@@ -287,9 +262,7 @@ if (!$userRole) {
         ]);
     }
 
-    // ─────────────────────────────
-    // SEARCH STUDENT
-    // ─────────────────────────────
+    //Search student by username
     function searchStudent($username){
         $students = Students::where('role', 'student')
             ->where("username", "like", "%$username%")
@@ -308,9 +281,7 @@ if (!$userRole) {
         ]);
     }
 
-    // ─────────────────────────────
-    // LIST TEACHER'S STUDENTS
-    // ─────────────────────────────
+    //List teacher's students
     public function teacherStudents($teacher_id)
     {
         $query = Students::where('role', 'student')->where('status', 1);
@@ -345,9 +316,7 @@ if (!$userRole) {
             'students' => $students
         ]);
     }
-        // ─────────────────────────────
-    // GET OWN PROFILE (Student — self access only)
-    // ─────────────────────────────
+        //Profile of logged-in student
     public function myProfile(Request $request)
     {
         $user = $request->user();

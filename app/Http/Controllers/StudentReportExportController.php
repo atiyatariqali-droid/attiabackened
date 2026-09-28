@@ -15,14 +15,14 @@ class StudentReportExportController extends AdminReportExportController
         return $user->id;
     }
 
-    // GET /api/student/reports/export/pdf
+    //Report export pdf for student
     public function exportMyPdf(Request $request)
     {
         $studentId = $this->authStudentId($request);
         return parent::exportStudentPdf($request, $studentId);
     }
 
-    // GET /api/student/reports/export/excel
+    //Report export excel for student
     public function exportMyExcel(Request $request)
     {
         $studentId = $this->authStudentId($request);

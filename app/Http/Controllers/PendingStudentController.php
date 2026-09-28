@@ -30,18 +30,15 @@ class PendingStudentController extends Controller
         return response()->json($pending);
     }
 
-    // NEW: lightweight count for badges — no need to pull the full list
+    //Count pending students
     public function count(Request $request)
     {
         $count = User::where('role', 'student')->where('status', 0)->count();
         return response()->json(['count' => $count]);
     }
 
-    public function store(Request $request)
-    {
-        // unchanged
-    }
-
+           
+    // Approve a pending student
     public function approve(Request $request, $id)
     {
         if ($request->user()->role !== 'admin') {
@@ -56,7 +53,8 @@ class PendingStudentController extends Controller
         $student->update(['status' => 1]);
         return response()->json(['success' => true]);
     }
-
+       
+    // Reject a pending student
     public function reject(Request $request, $id)
     {
         if ($request->user()->role !== 'admin') {
@@ -70,6 +68,7 @@ class PendingStudentController extends Controller
         return response()->json(['success' => true]);
     }
 
+    // Approve multiple pending students
     public function approveAll(Request $request)
     {
         if ($request->user()->role !== 'admin') {

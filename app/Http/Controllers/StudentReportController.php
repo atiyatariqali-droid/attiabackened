@@ -12,10 +12,10 @@ class StudentReportController extends Controller
         if (!$user) {
             abort(403, 'Unauthorized Access');
         }
-        return $user->id; // identity always from token, never from client input
+        return $user->id; 
     }
 
-    // GET /api/student/reports/my-report  (supports ?start_date=&end_date= filters)
+    //Get student report
     public function getMyReport(Request $request)
     {
         $studentId = $this->authStudentId($request);

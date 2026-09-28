@@ -8,8 +8,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Each manage_classes row (a specific class+subject+teacher offering)
-        // now points at the physical class_group it belongs to.
         Schema::table('manage_classes', function (Blueprint $table) {
             $table->foreignId('class_group_id')
                   ->nullable()

@@ -9,7 +9,6 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('attendance', function (Blueprint $table) {
-            // Ye check lagao: sirf tab add karo jab column na ho
             if (!Schema::hasColumn('attendance', 'session_id')) {
                 $table->unsignedBigInteger('session_id')->nullable()->after('status');
                 $table->foreign('session_id')
@@ -23,7 +22,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('attendance', function (Blueprint $table) {
-            // Foreign key pehle drop hogi, phir column
             $table->dropForeign(['session_id']); 
             $table->dropColumn('session_id');
         });

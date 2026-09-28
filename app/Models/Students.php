@@ -23,9 +23,6 @@ class Students extends Model
 
     protected $appends = ['class', 'class_name'];
 
-    // class_id now points at class_groups.id (the physical class), NOT a
-    // specific manage_classes (subject-offering) row. This is what makes a
-    // student's roster shared across every subject of their class.
     public function classGroup()
     {
         return $this->belongsTo(ClassGroup::class, 'class_id');
