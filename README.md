@@ -1,303 +1,253 @@
-```{=html}
-<p align="center">
-```
-```{=html}
-<h1 align="center">
-```
-Distributed Trust-Based Attendance Verification System (DAVS)
-```{=html}
-</h1>
-```
-```{=html}
-</p>
-```
-```{=html}
-<p align="center">
-```
-`<strong>`{=html}Final Year Project (FYP)`</strong>`{=html}
-```{=html}
-</p>
-```
-```{=html}
-<p align="center">
-```
-`<img src="https://img.shields.io/badge/Frontend-Flutter-blue" alt="Flutter">`{=html}
-`<img src="https://img.shields.io/badge/Backend-Laravel%2012-red" alt="Laravel">`{=html}
-`<img src="https://img.shields.io/badge/Database-MySQL-orange" alt="MySQL">`{=html}
-`<img src="https://img.shields.io/badge/State%20Management-GetX-purple" alt="GetX">`{=html}
-`<img src="https://img.shields.io/badge/Authentication-Laravel%20Sanctum-green" alt="Sanctum">`{=html}
-```{=html}
-</p>
-```
+![DAVS Logo](https://raw.githubusercontent.com/Minahilgul/minahilfrontendattendance/main/assets/images/davs_logo.jpg)
+# 1. Project Title
+Distributed Attendance Verification System (DAVS)
+Final Year Project (FYP)
 
-------------------------------------------------------------------------
+A secure attendance verification system designed to prevent proxy attendance by combining teacher device verification, campus geo-fencing and student confirmation.
+## 2. About DAVS
+The Distributed Attendance Verification System (DAVS) is a secure attendance management system designed to solve the problem of fake and proxy attendance in educational institutions.
 
-## About DAVS
+Instead of relying on manual registers or basic attendance applications. DAVS verifies that the teacher is present inside the campus and allows students to mark attendance only during an active class session.
 
-The **Distributed Trust-Based Attendance Verification System (DAVS)** is
-a secure attendance verification system designed to prevent proxy and
-fake attendance by combining **teacher device verification, campus
-geo-fencing, and student confirmation**.
+The system combines teacher device verification, campus geo-fencing, role-based authentication, active attendance sessions and student confirmation to improve the reliability and transparency of attendance records.
 
-Instead of relying on manual registers or basic attendance applications,
-DAVS verifies that the teacher is present inside the campus and allows
-students to mark attendance only during an active class session.
 
-## Problem Statement
-
+## 3. Problem Statement
 Traditional attendance systems have several limitations:
 
--   Proxy attendance by students
--   Fake attendance records
--   Attendance marked when the teacher is absent
--   No verification of classroom or campus presence
+- Proxy attendance by students
+- Fake attendance records
+- Attendance marked when the teacher is absent
+- No verification of classroom or campus presence
+- Limited attendance monitoring and reporting
 
-DAVS addresses these issues through location verification, active
-attendance sessions, registered teacher devices, and trust-based
-validation.
+DAVS addresses these problems through location verification, registered teacher devices, active attendance sessions and validation.
+## 4. Objectives
+- Prevent proxy attendance
+- Verify teacher presence inside the campus
+- Allow attendance only within the defined campus radius
+- Generate accurate attendance reports
+- Provide role-based access for Admin, Teacher and Student
+- Improve the reliability and transparency of attendance records
+- Provide attendance percentage calculations
+## 4. Objectives
+- Prevent proxy attendance
+- Verify teacher presence inside the campus
+- Allow attendance only within the defined campus radius
+- Generate accurate attendance reports
+- Provide role-based access for Admin, Teacher and Student
+- Improve the reliability and transparency of attendance records
+- Provide attendance percentage calculations
+## 5. System Roles
+Admin
 
-## Objectives
+- Manage teachers and students
+- Create and manage classes
+- Approve teacher accounts
+- View attendance analytics
+- Generate and export attendance reports
+- Manage system settings
 
--   Prevent proxy attendance
--   Verify teacher presence
--   Allow attendance only inside the campus
--   Generate accurate attendance reports
--   Provide role-based access for Admin, Teacher, and Student
--   Improve the reliability and transparency of attendance records
+Teacher
 
-## System Roles
+- Login using a registered device
+- Create attendance sessions
+- Verify teacher location
+- Monitor student attendance
+- View class attendance reports
+- Receive student verification responses
 
-### Admin
+Student
 
--   Manage teachers and students
--   Create and manage classes
--   Approve teacher accounts
--   View attendance analytics
--   Export attendance reports in PDF and Excel
+- Login to the system
+- Join active attendance sessions
+- Verify location within the campus radius
+- Mark attendance
+- Respond to teacher presence notifications
+- View personal attendance reports
+     
 
-### Teacher
 
--   Login using a registered device
--   Create attendance sessions
--   Mark and monitor student attendance
--   View class attendance reports
--   Receive student verification responses
+## 6. Features
 
-### Student
+- Teacher Device Binding
+- Campus Geo-Fencing
+- 150-Meter Campus Radius
+- Active and Inactive Attendance Sessions
+- Role-Based Authentication
+- Student Attendance Verification
+- Random 20% Student Confirmation System
+- Attendance Percentage Calculation
+- PDF Report Generation
+- Excel Report Generation
+- Attendance Monitoring and Reporting
 
--   Join active attendance sessions
--   Mark attendance within the campus radius
--   Respond to teacher presence notifications
--   View personal attendance reports
+## 7. Technology Stack
+| Layer            | Technology      |
+| ---------------- | --------------- |
+| Frontend         | Flutter         |
+| Backend          | Laravel 12      |
+| Database         | MySQL           |
+| Authentication   | Laravel Sanctum |
+| State Management | GetX            |
+| Location Service | Geolocator      |
 
-## Key Features
+## 8. System Workflow
+   1.  Admin registers teachers and students.
+   2.  Teacher logs in using the registered device.
+   3.  Teacher creates an attendance session.
+   4.  The system verifies the teacher's location within the 150-meter campus radius.
+   5.  Students join the active attendance session.
+   6.  Students mark their attendance within the allowed campus area.
+   7.  The system randomly selects 20% of students for teacher presence verification.
+   8.  Selected students receive a verification notification.
+   9.  Students respond with Yes or No.
+   10.  Attendance records and verification responses are stored in the database.
+   11.  Admin and Teacher can view and generate attendance reports.
+## 9. Database Modules
+| Module                         | Description                                 |
+| ------------------------------ | ------------------------------------------- |
+| Users                          | Stores Admin, Teacher, and Student accounts |
+| Manage Classes                 | Manages classes and class information       |
+| Class Groups                   | Groups students according to classes        |
+| Attendance Sessions            | Manages active attendance sessions          |
+| Attendance                     | Stores student attendance records           |
+| Teacher Confirmation Responses | Stores student verification responses       |
+| System Settings                | Stores system configuration                 |
 
--   🔐 **Teacher Device Binding**
--   📍 **100-Meter Campus Geo-Fencing**
--   🟢 **Active/Inactive Attendance Sessions**
--   👥 **Role-Based Authentication**
--   ✅ **Student Attendance Verification**
--   🎲 **Random 20% Student Confirmation System**
--   📊 **Attendance Percentage Calculation**
--   📄 **PDF and Excel Report Generation**
+## 10. Main API Modules
+| Module          | Purpose                                            |
+| --------------- | -------------------------------------------------- |
+| Authentication  | Login and role verification                        |
+| Create Session  | Teacher starts an attendance session               |
+| Mark Attendance | Student attendance                                 |
+| Reports         | Attendance reports for Admin, Teacher and Student |
+| Verification    | Teacher presence confirmation                      |
 
-## Technology Stack
+## 11. Installation
 
-  Layer              Technology
-  ------------------ -----------------
-  Frontend           Flutter
-  Backend            Laravel 12
-  Database           MySQL
-  Authentication     Laravel Sanctum
-  State Management   GetX
-  Location Service   Geolocator
+Clone Repository
 
-## System Workflow
 
-1.  Admin registers teachers and students.
-2.  Teacher logs in from the registered device.
-3.  Teacher creates an attendance session.
-4.  The system verifies the teacher's location within the 100-meter
-    campus radius.
-5.  Students mark attendance during the active session.
-6.  Random 20% of students receive a teacher verification notification.
-7.  Students submit their Yes/No verification response.
-8.  Admin and Teacher can generate attendance reports.
+  https://github.com/Minahilgul/minahilfrontendattendance.git
+  
+  https://github.com/atiyatariqali-droid/attiabackened.git
 
-## Database Modules
+  Backend Dependencies
 
-  -----------------------------------------------------------------------
-  Module                              Description
-  ----------------------------------- -----------------------------------
-  Users                               Admin, Teacher, and Student
-                                      accounts
+    composer install
+Environment Setup
 
-  Manage Classes                      Class creation and management
+    cp .env.example .env
+    php artisan key:generate
+Database Configuration
 
-  Class Groups                        Student grouping and class
-                                      association
+    DB_CONNECTION=mysql
+    DB_HOST=127.0.0.1
+    DB_PORT=3306
+    DB_DATABASE=backend
+    DB_USERNAME=root
+    DB_PASSWORD=
+Run Migrations
 
-  Attendance Sessions                 Active attendance session
-                                      management
+    php artisan migrate
+Start Laravel Server
 
-  Attendance                          Student attendance records
+    php artisan serve
+    
 
-  Teacher Confirmation Responses      Student responses for teacher
-                                      presence verification
 
-  System Settings                     System configuration and settings
-  -----------------------------------------------------------------------
+## 12. Flutter Setup
+    flutter pub get
+    flutter run -d chrome
+## 13. Folder Structure
 
-## Main API Modules
-
-  Module            Purpose
-  ----------------- ------------------------------------------------
-  Authentication    Login and role verification
-  Create Session    Teacher starts an attendance session
-  Mark Attendance   Student attendance
-  Reports           Admin, Teacher, and Student attendance reports
-  Verification      Teacher presence confirmation
-
-## Installation
-
-### Clone Repository
-
-``` bash
-git clone https://github.com/your-repository/davs.git
-cd davs
-```
-
-### Backend Dependencies
-
-``` bash
-composer install
-```
-
-### Environment Setup
-
-``` bash
-cp .env.example .env
-php artisan key:generate
-```
-
-### Database Configuration
-
-Update the `.env` file:
-
-``` env
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=attia_backend
-DB_USERNAME=root
-DB_PASSWORD=
-```
-
-### Run Database Migrations
-
-``` bash
-php artisan migrate
-```
-
-### Start Laravel Server
-
-``` bash
-php artisan serve
-```
-
-## Flutter Setup
-
-Navigate to the Flutter frontend directory and run:
-
-``` bash
-flutter pub get
-flutter run
-```
-
-## Folder Structure
-
-``` text
 backend/
 ├── app/
-│   ├── Http/
-│   ├── Models/
-│   └── ...
 ├── routes/
 ├── database/
-└── config/
+├── config/
+└── ...
 
 frontend/
 ├── lib/
-│   ├── screens/
-│   ├── services/
-│   ├── models/
-│   └── widgets/
+├── models/
+├── services/
+├── screens/
+├── widgets/
 └── ...
-```
+## 14. Attendance Verification Flow
 
-## Attendance Verification Flow
-
-``` text
 Admin
-  │
-  ├── Registers Teachers & Students
-  │
-  ▼
+  |
+  |-- Register Teachers & Students
+  |
+  v
 Teacher
-  │
-  ├── Login from Registered Device
-  ├── Location Verification
-  └── Create Attendance Session
-  │
-  ▼
+  |
+  |-- Login from Registered Device
+  |-- Location Verification
+  |-- Create Attendance Session
+  |
+  v
 Student
-  │
-  ├── Join Active Session
-  ├── Location Verification
-  └── Mark Attendance
-  │
-  ▼
+  |
+  |-- Join Active Session
+  |-- Location Verification
+  |-- Mark Attendance
+  |
+  v
 Random 20% Verification
-  │
-  ├── Student receives notification
-  └── Student responds Yes / No
-  │
-  ▼
-Attendance Records & Reports
-```
+  |
+  |-- Student receives notification
+  |-- Student responds Yes / No
+  |
+  v
+Attendance Records
+  |
+  v
+Reports
+## 15. Future Improvements
 
-## Future Improvements
+- QR-based classroom verification
+- Biometric verification
+- Multi-campus support
+- Advanced attendance analytics
+- Real-time attendance notifications
+##  16. Project Structure / Modules
 
--   QR-based classroom verification
--   Firebase push notifications
--   Biometric verification
--   Multi-campus support
--   Advanced attendance analytics
--   Real-time attendance notifications
+Admin Panel
 
-## Author
+    |
+    |-- Teacher Management
+    |-- Student Management
+    |-- Class Management
+    |-- Attendance Analytics
+    |-- Reports
+    |
 
-```{=html}
-<p align="center">
-```
-`<strong>`{=html}Distributed Trust-Based Attendance Verification System
-(DAVS)`</strong>`{=html}`<br>`{=html} Developed with Flutter, Laravel &
-MySQL
-```{=html}
-</p>
-```
-## License
+Teacher Module
 
-This project is developed for **educational purposes as a Final Year
-Project (FYP)**.
+    |
+    |-- Device Verification
+    |-- Location Verification
+    |-- Session Management
+    |-- Attendance Monitoring
+    |
 
-------------------------------------------------------------------------
+Student Module
 
-```{=html}
-<p align="center">
-```
-`<strong>`{=html}DAVS --- Distributed Trust-Based Attendance
-Verification System`</strong>`{=html}
-```{=html}
-</p>
-```
+    |
+    |-- Active Sessions
+    |-- Location Verification
+    |-- Attendance Marking
+    |-- Teacher Verification
+    |-- Attendance Reports
+## 17. Author
+Distributed Attendance Verification System (DAVS)
+
+Developed with Flutter, Laravel & MySQL.
+
+Final Year Project (FYP)
+## 18. License
+This project is developed for educational purposes as a Final Year Project (FYP).
