@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class AdminReportController extends Controller
@@ -321,263 +323,159 @@ class AdminReportController extends Controller
     }
 
     // GET /api/admin/reports/student/{id}
-    // public function getStudentDetailReport(Request $request, $id)
-    // {
-    //     $student = DB::table('users as s')
-    //         ->where('s.id', $id)
-    //         ->where('s.role', 'student')
-    //         ->leftJoin('users as t', 't.id', '=', 's.teacher_id')
-    //         ->select(
-    //             's.id as student_id',
-    //             's.username as student_name',
-    //             's.roll_no',
-    //             's.class as class_name',
-    //             't.username as teacher_name'
-    //         )
-    //         ->first();
-
-    //     if (!$student) {
-    //         return response()->json(['message' => 'Student not found'], 404);
-    //     }
-
-    //     // Fetch attendance logs for this student
-    //     $attendanceLogs = DB::table('attendance as a')
-    //         ->where('a.student_id', $id)
-    //         ->leftJoin('manage_classes as c', 'c.id', '=', 'a.class_id')
-    //         ->select(
-    //             'a.id as attendance_id',
-    //             'a.attendance_date',
-    //             'a.status',
-    //             'c.class_name'
-    //         );
-    //         // ->orderBy('a.attendance_date', 'desc')
-    //         // ->get();
-    //     // NEW: optional date range filter (used by teacher/student personal reports)
-    //     $startDate = $request->query('start_date');
-    //     $endDate   = $request->query('end_date');
-    //     if ($startDate && $endDate) {
-    //         $logsQuery->whereBetween('a.attendance_date', [$startDate, $endDate]);
-    //     }
-
-    //     $attendanceLogs = $logsQuery->orderBy('a.attendance_date', 'desc')->get();
-    //     $totalClasses = $attendanceLogs->count();
-    //     $presentCount = $attendanceLogs->where('status', 'present')->count();
-    //     $absentCount  = $attendanceLogs->where('status', 'absent')->count();
-    //     $lateCount    = $attendanceLogs->where('status', 'late')->count();
-
-    //     // Calculate attendance percentage (present + late counts as attended)
-    //     $attendedCount = $presentCount + $lateCount;
-    //     $attendancePercentage = $totalClasses > 0 ? round(($attendedCount / $totalClasses) * 100, 1) : 0.0;
-
-    //     $records = [];
-    //     foreach ($attendanceLogs as $log) {
-    //         $remarks = '-';
-    //         if ($log->status === 'present') {
-    //             $remarks = 'On Time';
-    //         } elseif ($log->status === 'late') {
-    //             $remarks = 'Late';
-    //         } elseif ($log->status === 'absent') {
-    //             $remarks = 'Absent';
-    //         }
-
-    //         // Check if there is an audit log for this attendance record
-    //         $audit = DB::table('attendance_audit_logs')
-    //             ->where('attendance_id', $log->attendance_id)
-    //             ->orderBy('created_at', 'desc')
-    //             ->first();
-
-    //         $auditData = null;
-    //         if ($audit) {
-    //             $auditData = [
-    //                 'admin_name'      => $audit->admin_name,
-    //                 'original_status' => ucfirst($audit->original_status),
-    //                 'updated_status'  => ucfirst($audit->updated_status),
-    //                 'edited_at'       => Carbon::parse($audit->created_at)->toDateTimeString(),
-    //             ];
-    //             $remarks = 'Edited by ' . $audit->admin_name;
-    //         }
-
-    //         $records[] = [
-    //             'id'        => $log->attendance_id,
-    //             'date'      => $log->attendance_date,
-    //             'status'    => ucfirst($log->status),
-    //             'subject'   => $log->class_name ?? 'Class',
-    //             'remarks'   => $remarks,
-    //             'audit_log' => $auditData,
-    //         ];
-    //     }
-
-    //     return response()->json([
-    //         'student_details' => [
-    //             'full_name'    => $student->student_name,
-    //             'roll_number'  => $student->roll_no ?? '-',
-    //             'class'        => $student->class_name ?? '-',
-    //             'teacher_name' => $student->teacher_name ?? 'Not Assigned',
-    //         ],
-    //         'summary' => [
-    //             'total_classes'         => $totalClasses,
-    //             'present_count'         => $presentCount,
-    //             'absent_count'          => $absentCount,
-    //             'late_count'            => $lateCount,
-    //             'attendance_percentage' => $attendancePercentage,
-    //         ],
-    //         'records' => $records,
-    //     ]);
-    // }
-    // GET /api/admin/reports/student/{id}
-public function getStudentDetailReport(Request $request, $id)
-{
-    // Get student
-    $student = DB::table('users as s')
-        ->where('s.id', $id)
-        ->where('s.role', 'student')
-        ->leftJoin('class_groups as cg', 'cg.id', '=', 's.class_id')
-        ->leftJoin('manage_classes as c', 'c.class_group_id', '=', 'cg.id')
-        ->leftJoin('users as t', 't.id', '=', 'c.teacher_id')
-        ->select(
-            's.id as student_id',
-            's.username as student_name',
-            's.roll_no',
-            'cg.name as class_name',
-            DB::raw('GROUP_CONCAT(DISTINCT t.username SEPARATOR ", ") as teacher_name')
-        )
-        ->groupBy('s.id', 's.username', 's.roll_no', 'cg.name')
-        ->first();
-
-    if (!$student) {
-        return response()->json([
-            'message' => 'Student not found'
-        ], 404);
-    }
-
-    // Build attendance query
-    $logsQuery = DB::table('attendance as a')
-        ->where('a.student_id', $id)
-        ->leftJoin('manage_classes as c', 'c.id', '=', 'a.class_id')
-        ->select(
-            'a.id as attendance_id',
-            'a.class_id',
-            'a.attendance_date',
-            'a.status',
-            'c.name as class_name',
-            'c.subject'
-        );
-
-    // Optional date range filter
-    $startDate = $request->query('start_date');
-    $endDate   = $request->query('end_date');
-
-    if ($startDate && $endDate) {
-        $logsQuery->whereBetween('a.attendance_date', [
-            $startDate,
-            $endDate
-        ]);
-    } elseif ($startDate) {
-        $logsQuery->whereDate('a.attendance_date', '>=', $startDate);
-    } elseif ($endDate) {
-        $logsQuery->whereDate('a.attendance_date', '<=', $endDate);
-    }
-
-    $classId = $request->query('class_id');
-    if ($classId) {
-        $logsQuery->where('a.class_id', $classId);
-    }
-
-    $status = $request->query('status');
-    if ($status && $status !== 'All') {
-        $logsQuery->where('a.status', $status);
-    }
-    // Get attendance records
-    $attendanceLogs = $logsQuery
-        ->orderBy('a.attendance_date', 'desc')
-        ->get();
-
-    // Calculate summary
-    $totalClasses = $attendanceLogs->count();
-
-    $presentCount = $attendanceLogs
-        ->where('status', 'present')
-        ->count();
-
-    $absentCount = $attendanceLogs
-        ->where('status', 'absent')
-        ->count();
-
-    $lateCount = $attendanceLogs
-        ->where('status', 'late')
-        ->count();
-
-    $attendedCount = $presentCount + $lateCount;
-
-    $attendancePercentage = $totalClasses > 0
-        ? round(($attendedCount / $totalClasses) * 100, 1)
-        : 0.0;
-
-    // Build records
-    $records = [];
-
-    foreach ($attendanceLogs as $log) {
-
-        $remarks = '-';
-
-        if ($log->status === 'present') {
-            $remarks = 'On Time';
-        } elseif ($log->status === 'late') {
-            $remarks = 'Late';
-        } elseif ($log->status === 'absent') {
-            $remarks = 'Absent';
-        }
-
-        // Check audit log
-        $audit = DB::table('attendance_audit_logs')
-            ->where('attendance_id', $log->attendance_id)
-            ->orderBy('created_at', 'desc')
+    public function getStudentDetailReport(Request $request, $id)
+    {
+        // Get student
+        $student = DB::table('users as s')
+            ->where('s.id', $id)
+            ->where('s.role', 'student')
+            ->leftJoin('class_groups as cg', 'cg.id', '=', 's.class_id')
+            ->leftJoin('manage_classes as c', 'c.class_group_id', '=', 'cg.id')
+            ->leftJoin('users as t', 't.id', '=', 'c.teacher_id')
+            ->select(
+                's.id as student_id',
+                's.username as student_name',
+                's.roll_no',
+                'cg.name as class_name',
+                DB::raw('GROUP_CONCAT(DISTINCT t.username SEPARATOR ", ") as teacher_name')
+            )
+            ->groupBy('s.id', 's.username', 's.roll_no', 'cg.name')
             ->first();
 
-        $auditData = null;
-
-        if ($audit) {
-            $auditData = [
-                'admin_name'      => $audit->admin_name,
-                'original_status' => ucfirst($audit->original_status),
-                'updated_status'  => ucfirst($audit->updated_status),
-                'edited_at'       => Carbon::parse(
-                    $audit->created_at
-                )->toDateTimeString(),
-            ];
-
-            $remarks = 'Edited by ' . $audit->admin_name;
+        if (!$student) {
+            return response()->json([
+                'message' => 'Student not found'
+            ], 404);
         }
 
-        $records[] = [
-            'id'        => $log->attendance_id,
-            'date'      => $log->attendance_date,
-            'status'    => ucfirst($log->status),
-            'subject'   => $log->class_name ?? 'Class',
-            'remarks'   => $remarks,
-            'audit_log' => $auditData,
-        ];
+        // Build attendance query
+        $logsQuery = DB::table('attendance as a')
+            ->where('a.student_id', $id)
+            ->leftJoin('manage_classes as c', 'c.id', '=', 'a.class_id')
+            ->select(
+                'a.id as attendance_id',
+                'a.class_id',
+                'a.attendance_date',
+                'a.status',
+                'c.name as class_name',
+                'c.subject'
+            );
+
+        // Optional date range filter
+        $startDate = $request->query('start_date');
+        $endDate   = $request->query('end_date');
+
+        if ($startDate && $endDate) {
+            $logsQuery->whereBetween('a.attendance_date', [
+                $startDate,
+                $endDate
+            ]);
+        } elseif ($startDate) {
+            $logsQuery->whereDate('a.attendance_date', '>=', $startDate);
+        } elseif ($endDate) {
+            $logsQuery->whereDate('a.attendance_date', '<=', $endDate);
+        }
+
+        $classId = $request->query('class_id');
+        if ($classId) {
+            $logsQuery->where('a.class_id', $classId);
+        }
+
+        $status = $request->query('status');
+        if ($status && $status !== 'All') {
+            $logsQuery->where('a.status', $status);
+        }
+        // Get attendance records
+        $attendanceLogs = $logsQuery
+            ->orderBy('a.attendance_date', 'desc')
+            ->get();
+
+        // Calculate summary
+        $totalClasses = $attendanceLogs->count();
+
+        $presentCount = $attendanceLogs
+            ->where('status', 'present')
+            ->count();
+
+        $absentCount = $attendanceLogs
+            ->where('status', 'absent')
+            ->count();
+
+        $lateCount = $attendanceLogs
+            ->where('status', 'late')
+            ->count();
+
+        $attendedCount = $presentCount + $lateCount;
+
+        $attendancePercentage = $totalClasses > 0
+            ? round(($attendedCount / $totalClasses) * 100, 1)
+            : 0.0;
+
+        // Build records
+        $records = [];
+
+        foreach ($attendanceLogs as $log) {
+
+            $remarks = '-';
+
+            if ($log->status === 'present') {
+                $remarks = 'On Time';
+            } elseif ($log->status === 'late') {
+                $remarks = 'Late';
+            } elseif ($log->status === 'absent') {
+                $remarks = 'Absent';
+            }
+
+            // Check audit log
+            $audit = DB::table('attendance_audit_logs')
+                ->where('attendance_id', $log->attendance_id)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            $auditData = null;
+
+            if ($audit) {
+                $auditData = [
+                    'admin_name'      => $audit->admin_name,
+                    'original_status' => ucfirst($audit->original_status),
+                    'updated_status'  => ucfirst($audit->updated_status),
+                    'edited_at'       => Carbon::parse(
+                        $audit->created_at
+                    )->toDateTimeString(),
+                ];
+
+                $remarks = 'Edited by ' . $audit->admin_name;
+            }
+
+            $records[] = [
+                'id'        => $log->attendance_id,
+                'date'      => $log->attendance_date,
+                'status'    => ucfirst($log->status),
+                'subject'   => $log->class_name ?? 'Class',
+                'remarks'   => $remarks,
+                'audit_log' => $auditData,
+            ];
+        }
+
+        return response()->json([
+            'student_details' => [
+                'full_name'   => $student->student_name,
+                'roll_number' => $student->roll_no ?? '-',
+                'class'       => $student->class_name ?? '-',
+                'teacher_name' => $student->teacher_name ?? 'Not Assigned',
+            ],
+
+            'summary' => [
+                'total_classes'         => $totalClasses,
+                'present_count'         => $presentCount,
+                'absent_count'          => $absentCount,
+                'late_count'            => $lateCount,
+                'attendance_percentage' => $attendancePercentage,
+            ],
+
+            'records' => $records,
+        ]);
     }
-
-    return response()->json([
-        'student_details' => [
-            'full_name'   => $student->student_name,
-            'roll_number' => $student->roll_no ?? '-',
-            'class'       => $student->class_name ?? '-',
-            'teacher_name' => $student->teacher_name ?? 'Not Assigned',
-        ],
-
-        'summary' => [
-            'total_classes'         => $totalClasses,
-            'present_count'         => $presentCount,
-            'absent_count'          => $absentCount,
-            'late_count'            => $lateCount,
-            'attendance_percentage' => $attendancePercentage,
-        ],
-
-        'records' => $records,
-    ]);
-}
 
     // PUT /api/admin/reports/attendance/{id}
     public function updateAttendance(Request $request, $id)
@@ -763,19 +661,38 @@ public function getStudentDetailReport(Request $request, $id)
     }
 
     // GET /api/admin/reports/sessions-summary
+    // (TeacherReportController forces teacher_id and calls this same method)
     public function getSessionsSummaryReport(Request $request)
     {
+        // "Session kab hua" batane wala column dhoondo.
+        // created_at NULL ho sakta hai (agar sessions DB::table()->insert() se bane hon
+        // bina timestamps ke) — is liye jo date-type columns maujood hain un par COALESCE.
+        $sessionColumns = collect(Schema::getColumns('attendance_sessions'))->keyBy('name');
+        $dateLikeTypes  = ['datetime', 'timestamp', 'date'];
+        $candidates     = [];
+        foreach (['start_time', 'date', 'created_at'] as $col) {
+            if ($sessionColumns->has($col)
+                && in_array(strtolower($sessionColumns[$col]['type_name'] ?? ''), $dateLikeTypes)) {
+                $candidates[] = "s.$col";
+            }
+        }
+        if (empty($candidates)) {
+            $candidates[] = 's.created_at';
+        }
+        $whenExpr = 'COALESCE(' . implode(', ', $candidates) . ')';
+
         $sessionsQuery = DB::table('attendance_sessions as s')
             ->leftJoin('users as t', 't.id', '=', 's.teacher_id')
             ->leftJoin('manage_classes as c', 'c.id', '=', 's.class_id')
             ->select(
                 's.id as session_id',
-                's.created_at',
                 's.status',
                 't.username as teacher_name',
-                'c.name as class_name'
+                'c.name as class_name',
+                DB::raw("$whenExpr as session_when")
             )
-            ->orderBy('s.created_at', 'desc');
+            ->orderByRaw("$whenExpr DESC")
+            ->orderBy('s.id', 'desc');
 
         if ($request->filled('teacher_id')) {
             $sessionsQuery->where('s.teacher_id', $request->teacher_id);
@@ -785,16 +702,23 @@ public function getStudentDetailReport(Request $request, $id)
         }
 
         $days = (int) $request->query('days', 7);
-        $date = $request->query('date');
+        if ($days < 1) {
+            $days = 7;
+        }
+        $date      = $request->query('date');
         $startDate = $request->query('start_date');
-        $endDate = $request->query('end_date');
+        $endDate   = $request->query('end_date');
 
         if ($date) {
-            $sessionsQuery->whereDate('s.created_at', $date);
+            $sessionsQuery->whereRaw("DATE($whenExpr) = ?", [Carbon::parse($date)->toDateString()]);
         } elseif ($startDate && $endDate) {
-            $sessionsQuery->whereBetween(DB::raw("DATE(s.created_at)"), [$startDate, $endDate]);
+            $sessionsQuery->whereRaw("DATE($whenExpr) BETWEEN ? AND ?", [
+                Carbon::parse($startDate)->toDateString(),
+                Carbon::parse($endDate)->toDateString(),
+            ]);
         } else {
-            $sessionsQuery->whereDate('s.created_at', '>=', now()->subDays($days)->toDateString());
+            // days=1 => sirf aaj, days=7 => aaj samet pichhle 7 din (chart ke sath consistent)
+            $sessionsQuery->whereRaw("DATE($whenExpr) >= ?", [now()->subDays($days - 1)->toDateString()]);
         }
 
         $sessions = $sessionsQuery->get();
@@ -804,42 +728,20 @@ public function getStudentDetailReport(Request $request, $id)
             $attendanceQuery = DB::table('attendance')
                 ->where('session_id', $session->session_id);
 
-            $totalMarked = (clone $attendanceQuery)->count();
+            $totalMarked  = (clone $attendanceQuery)->count();
             $presentCount = (clone $attendanceQuery)->where('status', 'present')->count();
-            $lateCount = (clone $attendanceQuery)->where('status', 'late')->count();
-            $absentCount = (clone $attendanceQuery)->where('status', 'absent')->count();
+            $lateCount    = (clone $attendanceQuery)->where('status', 'late')->count();
+            $absentCount  = (clone $attendanceQuery)->where('status', 'absent')->count();
 
             $attendancePct = $totalMarked > 0 ? round((($presentCount + $lateCount) / $totalMarked) * 100, 1) : 0;
 
-            $confirmationRequests = DB::table('confirmation_requests')
-                ->where('session_id', $session->session_id)
-                ->pluck('id');
-
-            $verdict = 'No verification';
-            if ($confirmationRequests->isNotEmpty()) {
-                $responses = DB::table('confirmation_responses')
-                    ->whereIn('request_id', $confirmationRequests)
-                    ->get();
-
-                $yesCount = $responses->where('response', 'yes')->count();
-                $noCount = $responses->where('response', 'no')->count();
-                $totalResponses = $responses->count();
-
-                if ($totalResponses > 0) {
-                    $hasAdminRequest = DB::table('confirmation_requests')
-                        ->join('users', 'users.id', '=', 'confirmation_requests.student_id')
-                        ->whereIn('confirmation_requests.id', $confirmationRequests)
-                        ->where('users.role', 'admin')
-                        ->exists();
-
-                    if ($hasAdminRequest) {
-                        $verdict = $yesCount > 0 ? 'Teacher Present' : 'Teacher NOT Present';
-                    } else {
-                        $verdict = $yesCount >= $noCount ? 'Teacher Present' : 'Teacher NOT Present';
-                    }
-                } else {
-                    $verdict = 'Awaiting responses';
-                }
+            $when = $session->session_when;
+            if ($when) {
+                $dateTime = strlen((string) $when) <= 10
+                    ? Carbon::parse($when)->format('Y-m-d')
+                    : Carbon::parse($when)->format('Y-m-d h:i A');
+            } else {
+                $dateTime = '-';
             }
 
             $result[] = [
@@ -847,16 +749,58 @@ public function getStudentDetailReport(Request $request, $id)
                 'class_name'     => $session->class_name ?? 'Unknown Class',
                 'teacher_name'   => $session->teacher_name ?? 'Unknown Teacher',
                 'status'         => $session->status,
-                'date_time'      => \Carbon\Carbon::parse($session->created_at)->format('Y-m-d h:i A'),
+                'date_time'      => $dateTime,
                 'present_count'  => $presentCount,
                 'late_count'     => $lateCount,
                 'absent_count'   => $absentCount,
                 'total_marked'   => $totalMarked,
                 'attendance_pct' => $attendancePct,
-                'verdict'        => $verdict,
+                'verdict'        => $this->sessionVerdict($session->session_id),
             ];
         }
 
         return response()->json(['sessions' => $result]);
+    }
+
+    // Teacher-presence verdict for one session (confirmation popup responses).
+    // Kisi bhi table/column ka masla ho to poori list crash nahi hogi.
+    private function sessionVerdict($sessionId): string
+    {
+        try {
+            $confirmationRequests = DB::table('confirmation_requests')
+                ->where('session_id', $sessionId)
+                ->pluck('id');
+
+            if ($confirmationRequests->isEmpty()) {
+                return 'No verification';
+            }
+
+            $responses = DB::table('confirmation_responses')
+                ->whereIn('request_id', $confirmationRequests)
+                ->get();
+
+            $yesCount       = $responses->where('response', 'yes')->count();
+            $noCount        = $responses->where('response', 'no')->count();
+            $totalResponses = $responses->count();
+
+            if ($totalResponses === 0) {
+                return 'Awaiting responses';
+            }
+
+            $hasAdminRequest = DB::table('confirmation_requests')
+                ->join('users', 'users.id', '=', 'confirmation_requests.student_id')
+                ->whereIn('confirmation_requests.id', $confirmationRequests)
+                ->where('users.role', 'admin')
+                ->exists();
+
+            if ($hasAdminRequest) {
+                return $yesCount > 0 ? 'Teacher Present' : 'Teacher NOT Present';
+            }
+
+            return $yesCount >= $noCount ? 'Teacher Present' : 'Teacher NOT Present';
+        } catch (\Throwable $e) {
+            Log::warning("sessions-summary verdict failed for session {$sessionId}: " . $e->getMessage());
+            return 'No verification';
+        }
     }
 }

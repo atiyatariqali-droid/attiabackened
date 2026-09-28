@@ -15,12 +15,14 @@ use App\Http\Controllers\StudentsController;
 use App\Http\Controllers\PendingStudentController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\AdminProfileController;
+use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\TeacherProfileController; 
 use App\Http\Controllers\ConfirmationController; 
 use App\Http\Controllers\AdminReportController;
 use App\Http\Controllers\AdminReportExportController;
 use App\Http\Controllers\StudentReportController;
 use App\Http\Controllers\StudentReportExportController;
+use App\Http\Controllers\TeacherDashboardController;
 use App\Http\Controllers\TeacherReportController;
 use App\Http\Controllers\TeacherReportExportController;
 
@@ -73,7 +75,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post("/pending-students/reject/{id}",  [PendingStudentController::class, "reject"]);
         Route::post("/pending-students/approve-all",  [PendingStudentController::class, "approveAll"]);
 
-
+        //stats
+        Route::get('/admin/dashboard-stats', [AdminDashboardController::class, 'adminStats']);
         // Admin profile routes
         Route::get ('admin/profile',                 [AdminProfileController::class, 'show']);
         Route::put ('admin/profile',                 [AdminProfileController::class, 'update']);
@@ -136,7 +139,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/end-session/{id}',            [SessionController::class, 'endSession']);
         Route::get('/active-session/{teacher_id}',  [SessionController::class, 'getActiveSession']);
         Route::get('/teacher-sessions/{teacher_id}',[SessionController::class, 'getTeacherSessions']);
-
+         //stats
+         Route::get('/teacher/{teacher_id}/dashboard-stats', [TeacherDashboardController::class, 'stats']);
         // Attendance marking
         Route::post('/mark-attendance',     [AttendanceController::class, 'markAttendance']);
         Route::post('/submit-attendance',   [AttendanceController::class, 'submitAttendance']);
