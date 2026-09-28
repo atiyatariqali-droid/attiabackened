@@ -1,59 +1,303 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
-
+```{=html}
 <p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+```
+```{=html}
+<h1 align="center">
+```
+Distributed Trust-Based Attendance Verification System (DAVS)
+```{=html}
+</h1>
+```
+```{=html}
 </p>
+```
+```{=html}
+<p align="center">
+```
+`<strong>`{=html}Final Year Project (FYP)`</strong>`{=html}
+```{=html}
+</p>
+```
+```{=html}
+<p align="center">
+```
+`<img src="https://img.shields.io/badge/Frontend-Flutter-blue" alt="Flutter">`{=html}
+`<img src="https://img.shields.io/badge/Backend-Laravel%2012-red" alt="Laravel">`{=html}
+`<img src="https://img.shields.io/badge/Database-MySQL-orange" alt="MySQL">`{=html}
+`<img src="https://img.shields.io/badge/State%20Management-GetX-purple" alt="GetX">`{=html}
+`<img src="https://img.shields.io/badge/Authentication-Laravel%20Sanctum-green" alt="Sanctum">`{=html}
+```{=html}
+</p>
+```
 
-## About Laravel
+------------------------------------------------------------------------
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## About DAVS
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+The **Distributed Trust-Based Attendance Verification System (DAVS)** is
+a secure attendance verification system designed to prevent proxy and
+fake attendance by combining **teacher device verification, campus
+geo-fencing, and student confirmation**.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Instead of relying on manual registers or basic attendance applications,
+DAVS verifies that the teacher is present inside the campus and allows
+students to mark attendance only during an active class session.
 
-## Learning Laravel
+## Problem Statement
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+Traditional attendance systems have several limitations:
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+-   Proxy attendance by students
+-   Fake attendance records
+-   Attendance marked when the teacher is absent
+-   No verification of classroom or campus presence
 
-## Laravel Sponsors
+DAVS addresses these issues through location verification, active
+attendance sessions, registered teacher devices, and trust-based
+validation.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Objectives
 
-### Premium Partners
+-   Prevent proxy attendance
+-   Verify teacher presence
+-   Allow attendance only inside the campus
+-   Generate accurate attendance reports
+-   Provide role-based access for Admin, Teacher, and Student
+-   Improve the reliability and transparency of attendance records
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## System Roles
 
-## Contributing
+### Admin
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+-   Manage teachers and students
+-   Create and manage classes
+-   Approve teacher accounts
+-   View attendance analytics
+-   Export attendance reports in PDF and Excel
 
-## Code of Conduct
+### Teacher
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+-   Login using a registered device
+-   Create attendance sessions
+-   Mark and monitor student attendance
+-   View class attendance reports
+-   Receive student verification responses
 
-## Security Vulnerabilities
+### Student
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+-   Join active attendance sessions
+-   Mark attendance within the campus radius
+-   Respond to teacher presence notifications
+-   View personal attendance reports
 
+## Key Features
+
+-   🔐 **Teacher Device Binding**
+-   📍 **100-Meter Campus Geo-Fencing**
+-   🟢 **Active/Inactive Attendance Sessions**
+-   👥 **Role-Based Authentication**
+-   ✅ **Student Attendance Verification**
+-   🎲 **Random 20% Student Confirmation System**
+-   📊 **Attendance Percentage Calculation**
+-   📄 **PDF and Excel Report Generation**
+
+## Technology Stack
+
+  Layer              Technology
+  ------------------ -----------------
+  Frontend           Flutter
+  Backend            Laravel 12
+  Database           MySQL
+  Authentication     Laravel Sanctum
+  State Management   GetX
+  Location Service   Geolocator
+
+## System Workflow
+
+1.  Admin registers teachers and students.
+2.  Teacher logs in from the registered device.
+3.  Teacher creates an attendance session.
+4.  The system verifies the teacher's location within the 100-meter
+    campus radius.
+5.  Students mark attendance during the active session.
+6.  Random 20% of students receive a teacher verification notification.
+7.  Students submit their Yes/No verification response.
+8.  Admin and Teacher can generate attendance reports.
+
+## Database Modules
+
+  -----------------------------------------------------------------------
+  Module                              Description
+  ----------------------------------- -----------------------------------
+  Users                               Admin, Teacher, and Student
+                                      accounts
+
+  Manage Classes                      Class creation and management
+
+  Class Groups                        Student grouping and class
+                                      association
+
+  Attendance Sessions                 Active attendance session
+                                      management
+
+  Attendance                          Student attendance records
+
+  Teacher Confirmation Responses      Student responses for teacher
+                                      presence verification
+
+  System Settings                     System configuration and settings
+  -----------------------------------------------------------------------
+
+## Main API Modules
+
+  Module            Purpose
+  ----------------- ------------------------------------------------
+  Authentication    Login and role verification
+  Create Session    Teacher starts an attendance session
+  Mark Attendance   Student attendance
+  Reports           Admin, Teacher, and Student attendance reports
+  Verification      Teacher presence confirmation
+
+## Installation
+
+### Clone Repository
+
+``` bash
+git clone https://github.com/your-repository/davs.git
+cd davs
+```
+
+### Backend Dependencies
+
+``` bash
+composer install
+```
+
+### Environment Setup
+
+``` bash
+cp .env.example .env
+php artisan key:generate
+```
+
+### Database Configuration
+
+Update the `.env` file:
+
+``` env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=attia_backend
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+### Run Database Migrations
+
+``` bash
+php artisan migrate
+```
+
+### Start Laravel Server
+
+``` bash
+php artisan serve
+```
+
+## Flutter Setup
+
+Navigate to the Flutter frontend directory and run:
+
+``` bash
+flutter pub get
+flutter run
+```
+
+## Folder Structure
+
+``` text
+backend/
+├── app/
+│   ├── Http/
+│   ├── Models/
+│   └── ...
+├── routes/
+├── database/
+└── config/
+
+frontend/
+├── lib/
+│   ├── screens/
+│   ├── services/
+│   ├── models/
+│   └── widgets/
+└── ...
+```
+
+## Attendance Verification Flow
+
+``` text
+Admin
+  │
+  ├── Registers Teachers & Students
+  │
+  ▼
+Teacher
+  │
+  ├── Login from Registered Device
+  ├── Location Verification
+  └── Create Attendance Session
+  │
+  ▼
+Student
+  │
+  ├── Join Active Session
+  ├── Location Verification
+  └── Mark Attendance
+  │
+  ▼
+Random 20% Verification
+  │
+  ├── Student receives notification
+  └── Student responds Yes / No
+  │
+  ▼
+Attendance Records & Reports
+```
+
+## Future Improvements
+
+-   QR-based classroom verification
+-   Firebase push notifications
+-   Biometric verification
+-   Multi-campus support
+-   Advanced attendance analytics
+-   Real-time attendance notifications
+
+## Author
+
+```{=html}
+<p align="center">
+```
+`<strong>`{=html}Distributed Trust-Based Attendance Verification System
+(DAVS)`</strong>`{=html}`<br>`{=html} Developed with Flutter, Laravel &
+MySQL
+```{=html}
+</p>
+```
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+This project is developed for **educational purposes as a Final Year
+Project (FYP)**.
+
+------------------------------------------------------------------------
+
+```{=html}
+<p align="center">
+```
+`<strong>`{=html}DAVS --- Distributed Trust-Based Attendance
+Verification System`</strong>`{=html}
+```{=html}
+</p>
+```
