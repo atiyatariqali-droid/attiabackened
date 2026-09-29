@@ -81,6 +81,7 @@ class SessionController extends Controller
             $session = Session::create([
                 'teacher_id' => $request->teacher_id,
                 'class_id'   => $class_id,
+                'start_time' => Carbon::now(),                    
                 'end_time'   => Carbon::now()->addMinutes(45),
                 'latitude'   => $request->latitude,
                 'longitude'  => $request->longitude,
