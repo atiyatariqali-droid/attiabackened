@@ -29,9 +29,9 @@ use App\Http\Controllers\TeacherReportExportController;
 // PUBLIC ROUTES
 Route::post("/login", [UserController::class, "login"])->name('login');
 Route::post("/register-teacher", [TeachersController::class, "registerTeacher"]);
-Route::post("/forgot-password", [PasswordResetController::class, "forgotPassword"]);
-Route::post("/verify-otp",      [PasswordResetController::class, "verifyOtp"]);
-Route::post("/reset-password",  [PasswordResetController::class, "resetPassword"]);
+Route::post("/forgot-password", [PasswordResetController::class, "forgotPassword"])->middleware('throttle:5,1');
+Route::post("/verify-otp",      [PasswordResetController::class, "verifyOtp"])->middleware('throttle:5,1');
+Route::post("/reset-password",  [PasswordResetController::class, "resetPassword"])->middleware('throttle:5,1');
 
 Route::get("/test", function () {
     return response()->json([

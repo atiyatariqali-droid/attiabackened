@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
@@ -51,7 +52,13 @@ class PasswordResetController extends Controller
             'updated_at' => now(),
         ]);
 
-        Mail::to($email)->send(new OtpMail($otp));
+        try {
+            Mail::to($email)->send(new OtpMail($otp, $user->username));
+        } catch (\Throwable $e) {
+            Log::error('OTP mail failed: ' . $e->getMessage());
+            DB::table('password_otps')->where('email', $email)->delete();
+            return response()->json(['success' => false, 'message' => 'Could not send email, please try again'], 500);
+        }
 
         return response()->json(['success' => true, 'message' => 'OTP sent to your email']);
     }
